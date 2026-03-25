@@ -347,8 +347,13 @@ export default function FloatingView({ location, refreshKey }: Props) {
           <div className="absolute inset-0 h-8 w-8 -translate-x-3 -translate-y-3 animate-ping rounded-full bg-indigo-200 opacity-20" />
         </div>
 
-        {/* カード */}
-        {positioned.map((post) => {
+        {/* カード — 遠いカードを先にレンダリング（後ろに配置） */}
+        {[...positioned].sort((a, b) => {
+          // canTap=false を先に描画 → canTap=true が上に来る
+          if (a.canTap !== b.canTap) return a.canTap ? 1 : -1;
+          // 同グループ内は遠い順
+          return (b.dist) - (a.dist);
+        }).map((post) => {
           const isSelected = selectedPost === post.id;
           const isBeingDragged = draggingId === post.id;
           const isSettled = post.id in settledPositions;
@@ -364,7 +369,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
               key={post.id}
               ref={(el) => { cardRefs.current[post.id] = el; }}
               className={`absolute ${
-                isBeingDragged ? "z-40" : isSelected ? "z-30" : "z-10"
+                isBeingDragged ? "z-40" : isSelected ? "z-30" : isNearby ? "z-20" : "z-10"
               }`}
               style={{
                 left: `${currentX}%`,
@@ -372,6 +377,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
                 transform: `translate(-50%, -50%) scale(${
                   isBeingDragged ? 1.1 : isSelected ? 1.05 : post.scale
                 })`,
+                pointerEvents: isNearby ? "auto" : "none",
                 transition: isBeingDragged ? "none" : "transform 0.4s ease, opacity 0.4s ease",
                 animation: stopAnim
                   ? "none"
