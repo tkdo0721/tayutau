@@ -457,7 +457,8 @@ export default function FloatingView({ location, refreshKey }: Props) {
                     style={{
                       width: `${dotSize}px`,
                       height: `${dotSize}px`,
-                      backgroundColor: post.canTap ? "#6366f1" : "#9ca3af",
+                      backgroundColor: "transparent",
+                      border: post.canTap ? "2px solid #6366f1" : "1.5px solid #9ca3af",
                       opacity: post.canTap ? 1 : 0.5,
                       left: `${x}%`,
                       top: `${y}%`,
@@ -483,7 +484,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
             })()}
             {/* 自分（中心） */}
             <div
-              className="absolute rounded-full bg-indigo-500"
+              className="absolute rounded-full bg-orange-400"
               style={{
                 width: mapExpanded ? "8px" : "5px",
                 height: mapExpanded ? "8px" : "5px",
