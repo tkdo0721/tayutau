@@ -482,17 +482,32 @@ export default function FloatingView({ location, refreshKey }: Props) {
                 );
               });
             })()}
-            {/* 自分（中心） */}
+            {/* 自分（中心）十字 */}
             <div
-              className="absolute rounded-full bg-orange-400"
-              style={{
-                width: mapExpanded ? "8px" : "5px",
-                height: mapExpanded ? "8px" : "5px",
-                left: "50%",
-                top: "50%",
-                transform: "translate(-50%, -50%)",
-              }}
-            />
+              className="absolute"
+              style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+            >
+              <div
+                className="absolute bg-orange-400"
+                style={{
+                  width: mapExpanded ? "12px" : "7px",
+                  height: mapExpanded ? "2px" : "1.5px",
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              />
+              <div
+                className="absolute bg-orange-400"
+                style={{
+                  width: mapExpanded ? "2px" : "1.5px",
+                  height: mapExpanded ? "12px" : "7px",
+                  left: "50%",
+                  top: "50%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              />
+            </div>
           </div>
         </div>
 
