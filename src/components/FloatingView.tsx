@@ -410,45 +410,77 @@ export default function FloatingView({ location, refreshKey }: Props) {
               N
             </span>
             {/* 投稿ドット */}
-            {positioned.map((post) => {
-              const r = (post.dist / MAX_RADIUS) * 45;
-              const angle = bearing(location.lat, location.lng, post.lat, post.lng);
-              const angleRad = ((angle - 90) * Math.PI) / 180;
-              const dotX = 50 + r * Math.cos(angleRad);
-              const dotY = 50 + r * Math.sin(angleRad);
-              const dotSize = mapExpanded
-                ? post.canTap ? 10 : 6
-                : post.canTap ? 5 : 3;
-              return (
-                <div
-                  key={post.id}
-                  className="absolute rounded-full transition-all duration-300"
-                  style={{
-                    width: `${dotSize}px`,
-                    height: `${dotSize}px`,
-                    backgroundColor: post.canTap ? "#6366f1" : "#9ca3af",
-                    opacity: post.canTap ? 1 : 0.5,
-                    left: `${dotX}%`,
-                    top: `${dotY}%`,
-                    transform: "translate(-50%, -50%)",
-                  }}
-                >
-                  {mapExpanded && (
-                    <span
-                      className="absolute whitespace-nowrap text-gray-500 pointer-events-none"
-                      style={{
-                        fontSize: "8px",
-                        left: `${dotSize + 3}px`,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                      }}
-                    >
-                      {Math.round(post.dist)}m
-                    </span>
-                  )}
-                </div>
-              );
-            })}
+            {(() => {
+              // ドット位置を計算してから重なりを解消
+              const dots = positioned.map((post) => {
+                // 非線形スケール: 近距離を広げて遠距離を圧縮
+                const distRatio = post.dist / MAX_RADIUS;
+                const scaledR = Math.sqrt(distRatio) * 45;
+                const angle = bearing(location.lat, location.lng, post.lat, post.lng);
+                const angleRad = ((angle - 90) * Math.PI) / 180;
+                return {
+                  post,
+                  x: 50 + scaledR * Math.cos(angleRad),
+                  y: 50 + scaledR * Math.sin(angleRad),
+                };
+              });
+
+              // 近いドット同士を押し出す
+              const minGap = mapExpanded ? 6 : 4;
+              for (let iter = 0; iter < 8; iter++) {
+                for (let i = 0; i < dots.length; i++) {
+                  for (let j = i + 1; j < dots.length; j++) {
+                    const dx = dots[j].x - dots[i].x;
+                    const dy = dots[j].y - dots[i].y;
+                    const d = Math.sqrt(dx * dx + dy * dy);
+                    if (d < minGap && d > 0) {
+                      const push = (minGap - d) / 2;
+                      const nx = dx / d;
+                      const ny = dy / d;
+                      dots[i].x -= nx * push;
+                      dots[i].y -= ny * push;
+                      dots[j].x += nx * push;
+                      dots[j].y += ny * push;
+                    }
+                  }
+                }
+              }
+
+              return dots.map(({ post, x, y }) => {
+                const dotSize = mapExpanded
+                  ? post.canTap ? 10 : 6
+                  : post.canTap ? 5 : 3;
+                return (
+                  <div
+                    key={post.id}
+                    className="absolute rounded-full transition-all duration-300"
+                    style={{
+                      width: `${dotSize}px`,
+                      height: `${dotSize}px`,
+                      backgroundColor: post.canTap ? "#6366f1" : "#9ca3af",
+                      opacity: post.canTap ? 1 : 0.5,
+                      left: `${x}%`,
+                      top: `${y}%`,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  >
+                    {mapExpanded && (
+                      <span
+                        className="absolute whitespace-nowrap text-gray-500 pointer-events-none"
+                        style={{
+                          fontSize: "8px",
+                          left: `${dotSize + 3}px`,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                        }}
+                      >
+                        {Math.round(post.dist)}m
+                      </span>
+                    )}
+                  </div>
+                );
+              });
+            })()}
             {/* 自分（中心） */}
             <div
               className="absolute rounded-full bg-indigo-500"
