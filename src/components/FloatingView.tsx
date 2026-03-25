@@ -338,13 +338,70 @@ export default function FloatingView({ location, refreshKey }: Props) {
           touchAction: "none",
         }}
       >
-        {/* 中心マーカー */}
+        {/* ミニマップ（右下） */}
         <div
-          className="absolute z-20 pointer-events-none"
-          style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
+          className="absolute z-50 pointer-events-none"
+          style={{ right: "12px", bottom: "12px", width: "100px", height: "100px" }}
         >
-          <div className="h-2 w-2 rounded-full bg-indigo-400" />
-          <div className="absolute inset-0 h-8 w-8 -translate-x-3 -translate-y-3 animate-ping rounded-full bg-indigo-200 opacity-20" />
+          <div className="relative w-full h-full rounded-full bg-white/70 backdrop-blur-sm shadow-md overflow-hidden">
+            {/* 同心円 */}
+            {[100, 200, 300, 400, 500].map((r) => {
+              const size = (r / MAX_RADIUS) * 90;
+              return (
+                <div
+                  key={r}
+                  className="absolute rounded-full border border-gray-200/60"
+                  style={{
+                    width: `${size}%`,
+                    height: `${size}%`,
+                    left: `${50 - size / 2}%`,
+                    top: `${50 - size / 2}%`,
+                  }}
+                />
+              );
+            })}
+            {/* 北の表示 */}
+            <span
+              className="absolute text-gray-400 font-medium"
+              style={{ fontSize: "7px", top: "2px", left: "50%", transform: "translateX(-50%)" }}
+            >
+              N
+            </span>
+            {/* 投稿ドット */}
+            {positioned.map((post) => {
+              const r = (post.dist / MAX_RADIUS) * 45;
+              const angle = bearing(location.lat, location.lng, post.lat, post.lng);
+              const angleRad = ((angle - 90) * Math.PI) / 180;
+              const dotX = 50 + r * Math.cos(angleRad);
+              const dotY = 50 + r * Math.sin(angleRad);
+              return (
+                <div
+                  key={post.id}
+                  className="absolute rounded-full"
+                  style={{
+                    width: post.canTap ? "5px" : "3px",
+                    height: post.canTap ? "5px" : "3px",
+                    backgroundColor: post.canTap ? "#6366f1" : "#9ca3af",
+                    opacity: post.canTap ? 1 : 0.5,
+                    left: `${dotX}%`,
+                    top: `${dotY}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
+              );
+            })}
+            {/* 自分（中心） */}
+            <div
+              className="absolute rounded-full bg-indigo-500"
+              style={{
+                width: "5px",
+                height: "5px",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+          </div>
         </div>
 
         {/* カード — 遠いカードを先にレンダリング（後ろに配置） */}
