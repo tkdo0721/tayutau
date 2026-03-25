@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useGeolocation } from "@/lib/hooks";
-import PostForm from "@/components/PostForm";
 import FloatingView from "@/components/FloatingView";
 
 export default function Home() {
@@ -40,42 +39,13 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-lg px-4 py-6">
-        {/* Header */}
-        <header className="mb-4 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-800">
-            Tayutau
-          </h1>
-          <p className="mt-1 text-xs text-gray-400">
-            半径500m — ここにいる、だれかの声
-          </p>
-        </header>
-
-        {/* Floating View */}
-        <FloatingView location={location} refreshKey={refreshKey} />
-
-        {/* Post Form */}
-        <div className="mt-6">
-          <PostForm
-            location={location}
-            onPosted={() => setRefreshKey((k) => k + 1)}
-          />
-        </div>
-
-        {/* Footer */}
-        <footer className="mt-8 text-center text-xs text-gray-300">
-          <p>
-            {location.lat.toFixed(4)}, {location.lng.toFixed(4)} ·{" "}
-            <button
-              onClick={refresh}
-              className="text-indigo-400 hover:text-indigo-500 transition"
-            >
-              位置を更新
-            </button>
-          </p>
-        </footer>
-      </div>
+    <main className="fixed inset-0 bg-gray-50 overflow-hidden">
+      <FloatingView
+        location={location}
+        refreshKey={refreshKey}
+        onPosted={() => setRefreshKey((k) => k + 1)}
+        onRefreshLocation={refresh}
+      />
     </main>
   );
 }

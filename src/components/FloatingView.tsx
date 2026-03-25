@@ -7,10 +7,13 @@ import CommentSection from "./CommentSection";
 interface Props {
   location: GeoLocation;
   refreshKey: number;
+  onPosted: () => void;
+  onRefreshLocation: () => void;
 }
 
 const MAX_RADIUS = 500;
 const TAP_RADIUS = 50;
+const DROP_ZONE_THRESHOLD = 20; // 画面左20%がドロップゾーン
 
 function bearing(lat1: number, lng1: number, lat2: number, lng2: number) {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -94,24 +97,34 @@ interface PositionedPost extends Post {
   driftY: number;
 }
 
-export default function FloatingView({ location, refreshKey }: Props) {
+export default function FloatingView({ location, refreshKey, onPosted, onRefreshLocation }: Props) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPost, setSelectedPost] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ドラッグ完了後の確定位置 (state)
+  // ドラッグ完了後の確定位置
   const [settledPositions, setSettledPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
 
-  // ドラッグ中のカードID (state — UIの見た目切替用)
+  // ドラッグ中のカードID
   const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  // ドロップゾーンにホバー中か
+  const [overDropZone, setOverDropZone] = useState(false);
 
   // ミニマップの展開状態
   const [mapExpanded, setMapExpanded] = useState(false);
 
-  // ドラッグ中の生データ (ref — DOM直接操作用、再レンダリングしない)
+  // 全画面コメント表示中の投稿
+  const [commentPost, setCommentPost] = useState<PositionedPost | null>(null);
+
+  // 投稿モーダル
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [postText, setPostText] = useState("");
+  const [postSubmitting, setPostSubmitting] = useState(false);
+
+  // ドラッグ中の生データ (ref)
   const dragRef = useRef<{
     postId: string;
     startX: number;
@@ -122,7 +135,6 @@ export default function FloatingView({ location, refreshKey }: Props) {
     el: HTMLElement | null;
   } | null>(null);
 
-  // カード要素への参照
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const fetchPosts = useCallback(async () => {
@@ -237,7 +249,6 @@ export default function FloatingView({ location, refreshKey }: Props) {
       if (!drag.moved) {
         drag.moved = true;
         setDraggingId(drag.postId);
-        // アニメーション即停止 + スタイル切替
         drag.el.style.animation = "none";
         drag.el.style.transition = "none";
         drag.el.style.zIndex = "40";
@@ -251,31 +262,61 @@ export default function FloatingView({ location, refreshKey }: Props) {
       const clampedX = Math.min(95, Math.max(5, newX));
       const clampedY = Math.min(95, Math.max(5, newY));
 
-      // DOM直接操作 — setState しない
+      // DOM直接操作
       drag.el.style.left = `${clampedX}%`;
       drag.el.style.top = `${clampedY}%`;
+
+      // ドロップゾーン判定（画面左側20%）
+      const pxRatio = (px - rect.left) / rect.width * 100;
+      setOverDropZone(pxRatio < DROP_ZONE_THRESHOLD);
     };
 
-    const handleEnd = () => {
+    const handleEnd = (e: TouchEvent | MouseEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
 
       if (drag.moved && drag.el && containerRef.current) {
-        // 現在のDOM位置を確定
-        const left = parseFloat(drag.el.style.left);
-        const top = parseFloat(drag.el.style.top);
-        drag.el.style.transition = "";
-        drag.el.style.zIndex = "";
-        setSettledPositions((prev) => ({
-          ...prev,
-          [drag.postId]: { x: left, y: top },
-        }));
+        // ドロップゾーンに入っていたら → コメント画面を開く
+        const { px } = getPointerPos(e);
+        const rect = containerRef.current.getBoundingClientRect();
+        const pxRatio = (px - rect.left) / rect.width * 100;
+
+        if (pxRatio < DROP_ZONE_THRESHOLD) {
+          // コメント画面を開く
+          const post = positioned.find((p) => p.id === drag.postId);
+          if (post) {
+            setCommentPost(post);
+          }
+          // カードの位置を元に戻す
+          const origPost = positioned.find((p) => p.id === drag.postId);
+          if (origPost) {
+            const origX = settledPositions[drag.postId]?.x ?? origPost.x;
+            const origY = settledPositions[drag.postId]?.y ?? origPost.y;
+            drag.el.style.left = `${origX}%`;
+            drag.el.style.top = `${origY}%`;
+          }
+          drag.el.style.transition = "";
+          drag.el.style.zIndex = "";
+        } else {
+          // 通常のドラッグ完了 → 位置確定
+          const left = parseFloat(drag.el.style.left);
+          const top = parseFloat(drag.el.style.top);
+          drag.el.style.transition = "";
+          drag.el.style.zIndex = "";
+          setSettledPositions((prev) => ({
+            ...prev,
+            [drag.postId]: { x: left, y: top },
+          }));
+        }
+
         setDraggingId(null);
+        setOverDropZone(false);
       } else {
-        // 動いてない → タップ
-        setSelectedPost((prev) =>
-          prev === drag.postId ? null : drag.postId
-        );
+        // 動いてない → タップ → コメント画面を開く
+        const post = positioned.find((p) => p.id === drag.postId);
+        if (post) {
+          setCommentPost(post);
+        }
         setDraggingId(null);
       }
 
@@ -293,7 +334,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
       window.removeEventListener("touchend", handleEnd);
       window.removeEventListener("mouseup", handleEnd);
     };
-  }, []);
+  }, [positioned, settledPositions]);
 
   const timeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -305,42 +346,89 @@ export default function FloatingView({ location, refreshKey }: Props) {
     return `${Math.floor(hours / 24)}日前`;
   };
 
-  const selectedData = useMemo(
-    () => positioned.find((p) => p.id === selectedPost),
-    [positioned, selectedPost]
-  );
+  // 投稿送信
+  const handlePost = async () => {
+    if (!postText.trim() || postSubmitting) return;
+    setPostSubmitting(true);
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: postText.trim(),
+          lat: location.lat,
+          lng: location.lng,
+        }),
+      });
+      if (res.ok) {
+        setPostText("");
+        setShowPostForm(false);
+        onPosted();
+      }
+    } finally {
+      setPostSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
+      <div className="flex items-center justify-center h-full">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-600" />
       </div>
     );
   }
 
-  if (posts.length === 0) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-gray-400 text-sm">
-          半径500m以内にまだ投稿がありません
-        </p>
-        <p className="text-gray-400 text-xs mt-1">最初の投稿をしてみましょう</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
+    <div className="relative w-full h-full">
+      {/* ヘッダー */}
+      <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
+        <div className="text-center pt-4 pb-2">
+          <h1 className="text-lg font-bold tracking-tight text-gray-800/60">
+            Tayutau
+          </h1>
+          <p className="text-[10px] text-gray-400/60">
+            場所に残しただれかの声
+          </p>
+        </div>
+      </div>
+
+      {/* メイン浮遊エリア */}
       <div
         ref={containerRef}
-        className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100/80 select-none"
-        style={{
-          height: "75vh",
-          minHeight: "400px",
-          maxHeight: "600px",
-          touchAction: "none",
-        }}
+        className="absolute inset-0 select-none"
+        style={{ touchAction: "none" }}
       >
+        {/* ドロップゾーン（ドラッグ中のみ表示） */}
+        {draggingId && (
+          <div
+            className={`absolute left-0 top-0 bottom-0 z-30 flex items-center justify-center transition-all duration-200 ${
+              overDropZone
+                ? "bg-indigo-100/60 backdrop-blur-sm"
+                : "bg-transparent"
+            }`}
+            style={{ width: `${DROP_ZONE_THRESHOLD}%` }}
+          >
+            <div
+              className={`flex flex-col items-center gap-2 transition-all duration-200 ${
+                overDropZone ? "opacity-100 scale-100" : "opacity-40 scale-90"
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                overDropZone ? "bg-indigo-400 text-white" : "bg-gray-300/60 text-gray-500"
+              }`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <span className={`text-xs font-medium whitespace-nowrap ${
+                overDropZone ? "text-indigo-600" : "text-gray-400"
+              }`}>
+                ここで開く
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* ミニマップ（右下 — タップで拡大） */}
         {mapExpanded && (
           <div
@@ -411,9 +499,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
             </span>
             {/* 投稿ドット */}
             {(() => {
-              // ドット位置を計算してから重なりを解消
               const dots = positioned.map((post) => {
-                // 非線形スケール: 近距離を広げて遠距離を圧縮
                 const distRatio = post.dist / MAX_RADIUS;
                 const scaledR = Math.sqrt(distRatio) * 45;
                 const angle = bearing(location.lat, location.lng, post.lat, post.lng);
@@ -425,7 +511,6 @@ export default function FloatingView({ location, refreshKey }: Props) {
                 };
               });
 
-              // 近いドット同士を押し出す
               const minGap = mapExpanded ? 6 : 4;
               for (let iter = 0; iter < 8; iter++) {
                 for (let i = 0; i < dots.length; i++) {
@@ -511,119 +596,233 @@ export default function FloatingView({ location, refreshKey }: Props) {
           </div>
         </div>
 
-        {/* カード — 遠いカードを先にレンダリング（後ろに配置） */}
-        {[...positioned].sort((a, b) => {
-          // canTap=false を先に描画 → canTap=true が上に来る
-          if (a.canTap !== b.canTap) return a.canTap ? 1 : -1;
-          // 同グループ内は遠い順
-          return (b.dist) - (a.dist);
-        }).map((post) => {
-          const isSelected = selectedPost === post.id;
-          const isBeingDragged = draggingId === post.id;
-          const isSettled = post.id in settledPositions;
-          const preview = visibleText(post.text, post.dist);
-          const isNearby = post.canTap;
-
-          const currentX = settledPositions[post.id]?.x ?? post.x;
-          const currentY = settledPositions[post.id]?.y ?? post.y;
-          const stopAnim = isSelected || isBeingDragged || isSettled;
-
-          return (
-            <div
-              key={post.id}
-              ref={(el) => { cardRefs.current[post.id] = el; }}
-              className={`absolute ${
-                isBeingDragged ? "z-40" : isSelected ? "z-30" : isNearby ? "z-20" : "z-10"
-              }`}
-              style={{
-                left: `${currentX}%`,
-                top: `${currentY}%`,
-                transform: `translate(-50%, -50%) scale(${
-                  isBeingDragged ? 1.1 : isSelected ? 1.05 : post.scale
-                })`,
-                pointerEvents: isNearby ? "auto" : "none",
-                transition: isBeingDragged ? "none" : "transform 0.4s ease, opacity 0.4s ease",
-                animation: stopAnim
-                  ? "none"
-                  : `float-${post.id.slice(0, 8)} ${post.animDuration}s ease-in-out ${post.animDelay}s infinite`,
-              }}
-              onTouchStart={
-                isNearby ? handlePointerDown(post.id, currentX, currentY) : undefined
-              }
-              onMouseDown={
-                isNearby ? handlePointerDown(post.id, currentX, currentY) : undefined
-              }
-            >
-              {!stopAnim && (
-                <style>{`
-                  @keyframes float-${post.id.slice(0, 8)} {
-                    0%, 100% { transform: translate(-50%, -50%) scale(${post.scale}) translate(0px, 0px); }
-                    33% { transform: translate(-50%, -50%) scale(${post.scale}) translate(${post.driftX}px, -${post.driftY}px); }
-                    66% { transform: translate(-50%, -50%) scale(${post.scale}) translate(-${post.driftX * 0.5}px, ${post.driftY * 0.7}px); }
-                  }
-                `}</style>
-              )}
-
-              <div
-                className={`block rounded-xl px-3 py-2 text-left ${
-                  isSelected
-                    ? "max-w-[200px] bg-white shadow-lg ring-2 ring-indigo-200"
-                    : isBeingDragged
-                    ? "max-w-[180px] bg-white shadow-xl ring-2 ring-indigo-300"
-                    : isNearby
-                    ? "max-w-[160px] bg-white/90 shadow-md cursor-grab"
-                    : "max-w-[120px] bg-white/40 shadow-none"
-                }`}
-                style={{
-                  filter:
-                    isSelected || isBeingDragged ? "none" : `blur(${post.blur}px)`,
-                  opacity:
-                    isSelected || isBeingDragged ? 1 : post.opacity,
-                }}
-              >
-                <p
-                  className={`leading-relaxed text-gray-700 ${
-                    isNearby ? "text-xs line-clamp-4" : "text-[10px] line-clamp-2"
-                  }`}
-                >
-                  {preview}
-                </p>
-              </div>
+        {/* 浮遊カード */}
+        {posts.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-gray-400 text-sm">
+                半径500m以内にまだ投稿がありません
+              </p>
+              <p className="text-gray-400 text-xs mt-1">最初の投稿をしてみましょう</p>
             </div>
-          );
-        })}
+          </div>
+        ) : (
+          [...positioned]
+            .sort((a, b) => {
+              if (a.canTap !== b.canTap) return a.canTap ? 1 : -1;
+              return b.dist - a.dist;
+            })
+            .map((post) => {
+              const isBeingDragged = draggingId === post.id;
+              const isSettled = post.id in settledPositions;
+              const preview = visibleText(post.text, post.dist);
+              const isNearby = post.canTap;
+
+              const currentX = settledPositions[post.id]?.x ?? post.x;
+              const currentY = settledPositions[post.id]?.y ?? post.y;
+              const stopAnim = isBeingDragged || isSettled;
+
+              return (
+                <div
+                  key={post.id}
+                  ref={(el) => {
+                    cardRefs.current[post.id] = el;
+                  }}
+                  className={`absolute ${
+                    isBeingDragged ? "z-40" : isNearby ? "z-20" : "z-10"
+                  }`}
+                  style={{
+                    left: `${currentX}%`,
+                    top: `${currentY}%`,
+                    transform: `translate(-50%, -50%) scale(${
+                      isBeingDragged ? 1.1 : post.scale
+                    })`,
+                    pointerEvents: isNearby ? "auto" : "none",
+                    transition: isBeingDragged
+                      ? "none"
+                      : "transform 0.4s ease, opacity 0.4s ease",
+                    animation: stopAnim
+                      ? "none"
+                      : `float-${post.id.slice(0, 8)} ${post.animDuration}s ease-in-out ${post.animDelay}s infinite`,
+                  }}
+                  onTouchStart={
+                    isNearby
+                      ? handlePointerDown(post.id, currentX, currentY)
+                      : undefined
+                  }
+                  onMouseDown={
+                    isNearby
+                      ? handlePointerDown(post.id, currentX, currentY)
+                      : undefined
+                  }
+                >
+                  {!stopAnim && (
+                    <style>{`
+                      @keyframes float-${post.id.slice(0, 8)} {
+                        0%, 100% { transform: translate(-50%, -50%) scale(${post.scale}) translate(0px, 0px); }
+                        33% { transform: translate(-50%, -50%) scale(${post.scale}) translate(${post.driftX}px, -${post.driftY}px); }
+                        66% { transform: translate(-50%, -50%) scale(${post.scale}) translate(-${post.driftX * 0.5}px, ${post.driftY * 0.7}px); }
+                      }
+                    `}</style>
+                  )}
+
+                  <div
+                    className={`block rounded-xl px-3 py-2 text-left ${
+                      isBeingDragged
+                        ? "max-w-[180px] bg-white shadow-xl ring-2 ring-indigo-300"
+                        : isNearby
+                        ? "max-w-[160px] bg-white/90 shadow-md cursor-grab"
+                        : "max-w-[120px] bg-white/40 shadow-none"
+                    }`}
+                    style={{
+                      filter: isBeingDragged
+                        ? "none"
+                        : `blur(${post.blur}px)`,
+                      opacity: isBeingDragged ? 1 : post.opacity,
+                    }}
+                  >
+                    <p
+                      className={`leading-relaxed text-gray-700 ${
+                        isNearby
+                          ? "text-xs line-clamp-4"
+                          : "text-[10px] line-clamp-2"
+                      }`}
+                    >
+                      {preview}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+        )}
       </div>
 
-      {/* 詳細 */}
-      {selectedData && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
-            {selectedData.text}
-          </p>
-          <div className="mt-3 flex items-center gap-3 text-xs text-gray-400">
-            <span>{timeAgo(selectedData.created_at)}</span>
-            <span>
-              {selectedData.dist < 10
-                ? "ここ"
-                : selectedData.dist < 50
-                ? "すぐそば"
-                : `${Math.round(selectedData.dist)}m先`}
-            </span>
-          </div>
-          <CommentSection
-            postId={selectedData.id}
-            postLat={selectedData.lat}
-            postLng={selectedData.lng}
-            location={location}
-          />
-          <button
-            onClick={() => setSelectedPost(null)}
-            className="mt-3 text-xs text-gray-400 hover:text-gray-600 transition"
+      {/* 投稿ボタン（左下） */}
+      <button
+        onClick={() => setShowPostForm(true)}
+        className="absolute left-4 bottom-4 z-40 w-12 h-12 rounded-full bg-indigo-500 text-white shadow-lg flex items-center justify-center hover:bg-indigo-600 active:scale-95 transition-all"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
+      {/* 位置更新ボタン（左下、投稿ボタンの上） */}
+      <button
+        onClick={onRefreshLocation}
+        className="absolute left-5 bottom-[76px] z-40 w-8 h-8 rounded-full bg-white/80 text-gray-400 shadow flex items-center justify-center hover:text-indigo-500 transition"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2a10 10 0 0 1 10 10h-3l-4-4" />
+          <path d="M12 22a10 10 0 0 1-10-10h3l4 4" />
+        </svg>
+      </button>
+
+      {/* 投稿モーダル */}
+      {showPostForm && (
+        <div className="absolute inset-0 z-[60] flex items-end justify-center bg-black/30 backdrop-blur-sm">
+          <div
+            className="w-full max-w-lg bg-white rounded-t-2xl p-5 shadow-xl animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
           >
-            手放す
-          </button>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-gray-700">
+                いまここで何を感じていますか？
+              </h2>
+              <button
+                onClick={() => {
+                  setShowPostForm(false);
+                  setPostText("");
+                }}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <textarea
+              value={postText}
+              onChange={(e) => setPostText(e.target.value)}
+              placeholder="この場所に言葉を残す…"
+              maxLength={500}
+              rows={4}
+              autoFocus
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none"
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-gray-400">{postText.length}/500</span>
+              <button
+                onClick={handlePost}
+                disabled={!postText.trim() || postSubmitting}
+                className="rounded-lg bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {postSubmitting ? "送信中…" : "投稿する"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* 全画面コメント表示 */}
+      {commentPost && (
+        <div className="absolute inset-0 z-[60] flex flex-col bg-white animate-slide-up">
+          {/* ヘッダー */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span>{timeAgo(commentPost.created_at)}</span>
+              <span>·</span>
+              <span>
+                {commentPost.dist < 10
+                  ? "ここ"
+                  : commentPost.dist < 50
+                  ? "すぐそば"
+                  : `${Math.round(commentPost.dist)}m先`}
+              </span>
+            </div>
+            <button
+              onClick={() => setCommentPost(null)}
+              className="text-gray-400 hover:text-gray-600 p-1"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          {/* 投稿本文 */}
+          <div className="px-5 py-4 border-b border-gray-50">
+            <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
+              {commentPost.text}
+            </p>
+          </div>
+
+          {/* コメント一覧 + 入力 */}
+          <div className="flex-1 overflow-y-auto">
+            <CommentSection
+              postId={commentPost.id}
+              postLat={commentPost.lat}
+              postLng={commentPost.lng}
+              location={location}
+              fullScreen
+            />
+          </div>
+        </div>
+      )}
+
+      {/* スライドアップアニメーション */}
+      <style>{`
+        @keyframes slide-up {
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

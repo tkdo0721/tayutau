@@ -10,6 +10,7 @@ interface Props {
   postLat: number;
   postLng: number;
   location: GeoLocation;
+  fullScreen?: boolean;
 }
 
 // 2点間の距離をメートルで計算 (Haversine)
@@ -34,11 +35,11 @@ export default function CommentSection({
   postLat,
   postLng,
   location,
+  fullScreen = false,
 }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [open, setOpen] = useState(false);
 
   // 投稿地点と自分の距離
   const distToPost = useMemo(
@@ -57,8 +58,8 @@ export default function CommentSection({
   }, [postId, location]);
 
   useEffect(() => {
-    if (open) fetchComments();
-  }, [open, fetchComments]);
+    fetchComments();
+  }, [fetchComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,32 +95,33 @@ export default function CommentSection({
     return `${Math.floor(hours / 24)}日前`;
   };
 
-  return (
-    <div className="mt-2">
-      <button
-        onClick={() => setOpen(!open)}
-        className="text-xs text-gray-500 hover:text-indigo-500 transition"
-      >
-        {open
-          ? "コメントを閉じる"
-          : `コメント${comments.length > 0 ? ` (${comments.length})` : ""}`}
-      </button>
-
-      {open && (
-        <div className="mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
-          {comments.map((c) => (
-            <div key={c.id} className="text-sm">
-              <p className="text-gray-700">{c.text}</p>
-              <span className="text-xs text-gray-400">
-                {timeAgo(c.created_at)}
-              </span>
+  if (fullScreen) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* コメント一覧 */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {comments.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-8">
+              まだコメントはありません
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {comments.map((c) => (
+                <div key={c.id} className="group">
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {c.text}
+                  </p>
+                  <span className="text-xs text-gray-400 mt-1 block">
+                    {timeAgo(c.created_at)}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-
-          {comments.length === 0 && (
-            <p className="text-xs text-gray-400">まだコメントはありません</p>
           )}
+        </div>
 
+        {/* コメント入力（画面下部に固定） */}
+        <div className="border-t border-gray-100 px-4 py-3 bg-white">
           {canComment ? (
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input
@@ -128,24 +130,67 @@ export default function CommentSection({
                 onChange={(e) => setText(e.target.value)}
                 placeholder="コメントを書く…"
                 maxLength={300}
-                className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-100"
+                className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-100"
               />
               <button
                 type="submit"
                 disabled={!text.trim() || submitting}
-                className="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-600 disabled:opacity-40"
+                className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-600 disabled:opacity-40"
               >
-                送信
+                {submitting ? "…" : "送信"}
               </button>
             </form>
           ) : (
-            <p className="text-xs text-gray-400">
-              📍 投稿地点から{Math.round(distToPost)}m — あと
+            <p className="text-xs text-gray-400 text-center py-1">
+              投稿地点から{Math.round(distToPost)}m — あと
               {Math.round(distToPost - COMMENT_RADIUS_M)}m近づくとコメントできます
             </p>
           )}
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // コンパクトモード（旧来の表示、現在は使わない）
+  return (
+    <div className="mt-2">
+      <div className="space-y-3 pl-4 border-l-2 border-gray-100">
+        {comments.map((c) => (
+          <div key={c.id} className="text-sm">
+            <p className="text-gray-700">{c.text}</p>
+            <span className="text-xs text-gray-400">
+              {timeAgo(c.created_at)}
+            </span>
+          </div>
+        ))}
+        {comments.length === 0 && (
+          <p className="text-xs text-gray-400">まだコメントはありません</p>
+        )}
+        {canComment ? (
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="コメントを書く…"
+              maxLength={300}
+              className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-100"
+            />
+            <button
+              type="submit"
+              disabled={!text.trim() || submitting}
+              className="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-600 disabled:opacity-40"
+            >
+              送信
+            </button>
+          </form>
+        ) : (
+          <p className="text-xs text-gray-400">
+            投稿地点から{Math.round(distToPost)}m — あと
+            {Math.round(distToPost - COMMENT_RADIUS_M)}m近づくとコメントできます
+          </p>
+        )}
+      </div>
     </div>
   );
 }
