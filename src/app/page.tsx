@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useGeolocation } from "@/lib/hooks";
 import PostForm from "@/components/PostForm";
-import PostList from "@/components/PostList";
+import RadarView from "@/components/RadarView";
 
 export default function Home() {
   const { location, error, loading, refresh } = useGeolocation();
@@ -41,9 +41,9 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-lg px-4 py-8">
+      <div className="mx-auto max-w-lg px-4 py-6">
         {/* Header */}
-        <header className="mb-8 text-center">
+        <header className="mb-4 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-gray-800">
             Tayutau
           </h1>
@@ -52,17 +52,19 @@ export default function Home() {
           </p>
         </header>
 
-        {/* Post Form */}
-        <PostForm
-          location={location}
-          onPosted={() => setRefreshKey((k) => k + 1)}
-        />
+        {/* Radar View */}
+        <RadarView location={location} refreshKey={refreshKey} />
 
-        {/* Post List */}
-        <PostList location={location} refreshKey={refreshKey} />
+        {/* Post Form */}
+        <div className="mt-6">
+          <PostForm
+            location={location}
+            onPosted={() => setRefreshKey((k) => k + 1)}
+          />
+        </div>
 
         {/* Footer */}
-        <footer className="mt-12 text-center text-xs text-gray-300">
+        <footer className="mt-8 text-center text-xs text-gray-300">
           <p>
             {location.lat.toFixed(4)}, {location.lng.toFixed(4)} ·{" "}
             <button
