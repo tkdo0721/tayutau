@@ -9,6 +9,22 @@ interface Props {
   refreshKey: number;
 }
 
+// 距離に応じて表示する文字数を計算
+// 0m → 全文表示, 500m → 最初の6文字のみ
+function visibleLength(text: string, distanceM: number | undefined): number {
+  if (distanceM === undefined || distanceM <= 0) return text.length;
+  const ratio = Math.max(0, 1 - distanceM / 500);
+  // 最低6文字は見せる
+  return Math.max(6, Math.round(text.length * ratio));
+}
+
+// 距離に応じた不透明度
+// 0m → 1.0, 500m → 0.35
+function opacityFromDistance(distanceM: number | undefined): number {
+  if (distanceM === undefined || distanceM <= 0) return 1;
+  return Math.max(0.35, 1 - distanceM / 700);
+}
+
 export default function PostList({ location, refreshKey }: Props) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +59,9 @@ export default function PostList({ location, refreshKey }: Props) {
 
   const formatDistance = (m?: number) => {
     if (m === undefined) return "";
-    return m < 100 ? "すぐ近く" : `${Math.round(m)}m先`;
+    if (m < 50) return "すぐそば";
+    if (m < 100) return "すぐ近く";
+    return `${Math.round(m)}m先`;
   };
 
   if (loading) {
@@ -67,21 +85,43 @@ export default function PostList({ location, refreshKey }: Props) {
 
   return (
     <div className="space-y-4">
-      {posts.map((post) => (
-        <article
-          key={post.id}
-          className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
-        >
-          <p className="text-gray-800 text-sm whitespace-pre-wrap">{post.text}</p>
-          <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
-            <span>{timeAgo(post.created_at)}</span>
-            {post.distance_m !== undefined && (
-              <span>{formatDistance(post.distance_m)}</span>
+      {posts.map((post) => {
+        const vLen = visibleLength(post.text, post.distance_m);
+        const isTruncated = vLen < post.text.length;
+        const displayText = isTruncated
+          ? post.text.slice(0, vLen) + "…"
+          : post.text;
+        const opacity = opacityFromDistance(post.distance_m);
+
+        return (
+          <article
+            key={post.id}
+            className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-opacity"
+            style={{ opacity }}
+          >
+            <p className="text-gray-800 text-sm whitespace-pre-wrap">
+              {displayText}
+            </p>
+            {isTruncated && (
+              <p className="mt-1 text-xs text-gray-300">
+                ― 近づくと続きが見えます
+              </p>
             )}
-          </div>
-          <CommentSection postId={post.id} location={location} />
-        </article>
-      ))}
+            <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+              <span>{timeAgo(post.created_at)}</span>
+              {post.distance_m !== undefined && (
+                <span>{formatDistance(post.distance_m)}</span>
+              )}
+            </div>
+            <CommentSection
+              postId={post.id}
+              postLat={post.lat}
+              postLng={post.lng}
+              location={location}
+            />
+          </article>
+        );
+      })}
     </div>
   );
 }
