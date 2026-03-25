@@ -10,7 +10,7 @@ interface Props {
 }
 
 const MAX_RADIUS = 500;
-const TAP_RADIUS = 50; // 50m以内だけタップ可能
+const TAP_RADIUS = 50;
 
 // 方位角
 function bearing(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -24,7 +24,7 @@ function bearing(lat1: number, lng1: number, lat2: number, lng2: number) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-// シード付き疑似乱数 (位置の安定化用)
+// シード付き疑似乱数
 function seededRandom(seed: string) {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -44,6 +44,48 @@ function visibleText(text: string, distanceM: number): string {
   const len = Math.max(3, Math.round(text.length * ratio));
   if (len >= text.length) return text;
   return text.slice(0, len) + "…";
+}
+
+// タップ可能カード同士の重なりを解消
+function resolveOverlaps(
+  items: { x: number; y: number; canTap: boolean; id: string }[]
+): Map<string, { x: number; y: number }> {
+  const tappable = items.filter((i) => i.canTap);
+  const result = new Map<string, { x: number; y: number }>();
+  const minDist = 18; // %単位での最小間隔
+
+  // まずすべてコピー
+  const positions = tappable.map((t) => ({ id: t.id, x: t.x, y: t.y }));
+
+  // 数回イテレーションして押し出す
+  for (let iter = 0; iter < 10; iter++) {
+    for (let i = 0; i < positions.length; i++) {
+      for (let j = i + 1; j < positions.length; j++) {
+        const dx = positions[j].x - positions[i].x;
+        const dy = positions[j].y - positions[i].y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < minDist && d > 0) {
+          const push = (minDist - d) / 2;
+          const nx = dx / d;
+          const ny = dy / d;
+          positions[i].x -= nx * push;
+          positions[i].y -= ny * push;
+          positions[j].x += nx * push;
+          positions[j].y += ny * push;
+          // 中心付近に留める (0〜100%)
+          positions[i].x = Math.min(85, Math.max(15, positions[i].x));
+          positions[i].y = Math.min(85, Math.max(15, positions[i].y));
+          positions[j].x = Math.min(85, Math.max(15, positions[j].x));
+          positions[j].y = Math.min(85, Math.max(15, positions[j].y));
+        }
+      }
+    }
+  }
+
+  for (const p of positions) {
+    result.set(p.id, { x: p.x, y: p.y });
+  }
+  return result;
 }
 
 interface PositionedPost extends Post {
@@ -83,33 +125,49 @@ export default function FloatingView({ location, refreshKey }: Props) {
   }, [fetchPosts, refreshKey]);
 
   const positioned = useMemo(() => {
-    return posts.map((post): PositionedPost => {
+    // まず全投稿の初期位置を計算
+    const initial = posts.map((post) => {
       const dist = post.distance_m ?? 0;
       const angle = bearing(location.lat, location.lng, post.lat, post.lng);
       const rng = seededRandom(post.id);
 
-      // 距離に基づく位置 (中心からの距離%)
-      const radiusPct = (dist / MAX_RADIUS) * 42;
+      // 画面全体を使うマッピング
+      // 近い投稿 (0-50m): 中心付近 30-70% に配置
+      // 遠い投稿 (50-500m): 画面全体 0-100% に広がる（見切れOK）
+      const distRatio = dist / MAX_RADIUS;
       const angleRad = ((angle - 90) * Math.PI) / 180;
 
-      // ランダムなオフセットを加える（重なり回避）
-      const offsetX = (rng() - 0.5) * 10;
-      const offsetY = (rng() - 0.5) * 10;
-      const x = Math.min(88, Math.max(12, 50 + radiusPct * Math.cos(angleRad) + offsetX));
-      const y = Math.min(88, Math.max(12, 50 + radiusPct * Math.sin(angleRad) + offsetY));
+      let x: number, y: number;
+      if (dist <= TAP_RADIUS) {
+        // タップ可能圏: 中心寄りに集める
+        const r = (dist / TAP_RADIUS) * 20; // 中心から最大20%
+        const jitterX = (rng() - 0.5) * 12;
+        const jitterY = (rng() - 0.5) * 12;
+        x = 50 + r * Math.cos(angleRad) + jitterX;
+        y = 50 + r * Math.sin(angleRad) + jitterY;
+        x = Math.min(80, Math.max(20, x));
+        y = Math.min(80, Math.max(20, y));
+      } else {
+        // 遠い投稿: 画面を広く使う、見切れても構わない
+        const r = 25 + (distRatio * 35);
+        const jitterX = (rng() - 0.5) * 20;
+        const jitterY = (rng() - 0.5) * 20;
+        x = 50 + r * Math.cos(angleRad) + jitterX;
+        y = 50 + r * Math.sin(angleRad) + jitterY;
+        // 見切れOK: -10〜110%
+        x = Math.min(110, Math.max(-10, x));
+        y = Math.min(110, Math.max(-10, y));
+      }
 
-      // 距離による見た目
-      const distRatio = dist / MAX_RADIUS;
-      const scale = Math.max(0.5, 1 - distRatio * 0.6);
-      const blur = dist <= 30 ? 0 : Math.min(3.5, distRatio * 4);
-      const opacity = Math.max(0.25, 1 - distRatio * 0.8);
       const canTap = dist <= TAP_RADIUS;
+      const scale = canTap ? 1 : Math.max(0.4, 1 - distRatio * 0.7);
+      const blur = dist <= 30 ? 0 : dist <= TAP_RADIUS ? 0.5 : Math.min(4, distRatio * 5);
+      const opacity = canTap ? Math.max(0.8, 1 - dist / TAP_RADIUS * 0.2) : Math.max(0.15, 1 - distRatio * 0.9);
 
-      // ふわふわアニメーション用
       const animDelay = rng() * -20;
-      const animDuration = 6 + rng() * 8;
-      const driftX = 4 + rng() * 8;
-      const driftY = 4 + rng() * 8;
+      const animDuration = canTap ? (8 + rng() * 6) : (5 + rng() * 7);
+      const driftX = canTap ? (2 + rng() * 4) : (6 + rng() * 12);
+      const driftY = canTap ? (2 + rng() * 4) : (6 + rng() * 12);
 
       return {
         ...post,
@@ -124,7 +182,17 @@ export default function FloatingView({ location, refreshKey }: Props) {
         animDuration,
         driftX,
         driftY,
-      };
+      } as PositionedPost;
+    });
+
+    // タップ可能カードの重なりを解消
+    const adjustments = resolveOverlaps(initial);
+    return initial.map((p) => {
+      const adj = adjustments.get(p.id);
+      if (adj) {
+        return { ...p, x: adj.x, y: adj.y };
+      }
+      return p;
     });
   }, [posts, location]);
 
@@ -164,10 +232,11 @@ export default function FloatingView({ location, refreshKey }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* 浮遊空間 */}
+      {/* 浮遊空間 — 画面を広く使う */}
       <div
         ref={containerRef}
-        className="relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100"
+        className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100/80"
+        style={{ height: "75vh", minHeight: "400px", maxHeight: "600px" }}
       >
         {/* 中心マーカー（自分） */}
         <div
@@ -175,7 +244,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
           style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
         >
           <div className="h-2 w-2 rounded-full bg-indigo-400" />
-          <div className="absolute h-6 w-6 animate-ping rounded-full bg-indigo-200 opacity-30" />
+          <div className="absolute h-8 w-8 animate-ping rounded-full bg-indigo-200 opacity-20" />
         </div>
 
         {/* 浮遊カード */}
@@ -188,7 +257,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
             <div
               key={post.id}
               className={`absolute transition-all duration-500 ${
-                isSelected ? "z-30" : "z-10"
+                isSelected ? "z-30" : isNearby ? "z-15" : "z-10"
               }`}
               style={{
                 left: `${post.x}%`,
@@ -213,26 +282,25 @@ export default function FloatingView({ location, refreshKey }: Props) {
                   setSelectedPost(isSelected ? null : post.id);
                 }}
                 disabled={!isNearby}
-                className={`block max-w-[140px] rounded-xl px-3 py-2 text-left transition-all duration-300 ${
+                className={`block rounded-xl px-3 py-2 text-left transition-all duration-300 ${
                   isSelected
-                    ? "bg-white shadow-lg ring-2 ring-indigo-200"
+                    ? "max-w-[200px] bg-white shadow-lg ring-2 ring-indigo-200"
                     : isNearby
-                    ? "bg-white/90 shadow-md hover:shadow-lg cursor-pointer"
-                    : "bg-white/60 shadow-sm cursor-default"
+                    ? "max-w-[160px] bg-white/90 shadow-md hover:shadow-lg cursor-pointer active:scale-95"
+                    : "max-w-[120px] bg-white/40 shadow-none cursor-default"
                 }`}
                 style={{
                   filter: isSelected ? "none" : `blur(${post.blur}px)`,
                   opacity: isSelected ? 1 : post.opacity,
                 }}
               >
-                <p className="text-xs leading-relaxed text-gray-700 line-clamp-3">
+                <p
+                  className={`leading-relaxed text-gray-700 ${
+                    isNearby ? "text-xs line-clamp-4" : "text-[10px] line-clamp-2"
+                  }`}
+                >
                   {preview}
                 </p>
-                {isNearby && !isSelected && (
-                  <p className="mt-1 text-xs text-indigo-400">
-                    ●
-                  </p>
-                )}
               </button>
             </div>
           );
@@ -241,7 +309,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
 
       {/* 選択した投稿の詳細 */}
       {selectedData && (
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm animate-in fade-in duration-300">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
             {selectedData.text}
           </p>
