@@ -12,7 +12,6 @@ interface Props {
 const MAX_RADIUS = 500;
 const TAP_RADIUS = 50;
 
-// 方位角
 function bearing(lat1: number, lng1: number, lat2: number, lng2: number) {
   const toRad = (d: number) => (d * Math.PI) / 180;
   const toDeg = (r: number) => (r * 180) / Math.PI;
@@ -24,7 +23,6 @@ function bearing(lat1: number, lng1: number, lat2: number, lng2: number) {
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-// シード付き疑似乱数
 function seededRandom(seed: string) {
   let h = 0;
   for (let i = 0; i < seed.length; i++) {
@@ -38,7 +36,6 @@ function seededRandom(seed: string) {
   };
 }
 
-// 距離に応じた表示テキスト
 function visibleText(text: string, distanceM: number): string {
   const ratio = Math.max(0, 1 - distanceM / MAX_RADIUS);
   const len = Math.max(3, Math.round(text.length * ratio));
@@ -46,14 +43,12 @@ function visibleText(text: string, distanceM: number): string {
   return text.slice(0, len) + "…";
 }
 
-// タップ可能カード同士の重なりを解消
 function resolveOverlaps(
   items: { x: number; y: number; canTap: boolean; id: string }[]
 ): Map<string, { x: number; y: number }> {
   const tappable = items.filter((i) => i.canTap);
   const result = new Map<string, { x: number; y: number }>();
   const minDist = 18;
-
   const positions = tappable.map((t) => ({ id: t.id, x: t.x, y: t.y }));
 
   for (let iter = 0; iter < 10; iter++) {
@@ -105,20 +100,27 @@ export default function FloatingView({ location, refreshKey }: Props) {
   const [selectedPost, setSelectedPost] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ドラッグで移動したカードの位置を保持 { [postId]: { x%, y% } }
-  const [draggedPositions, setDraggedPositions] = useState<
+  // ドラッグ完了後の確定位置 (state)
+  const [settledPositions, setSettledPositions] = useState<
     Record<string, { x: number; y: number }>
   >({});
 
-  // ドラッグ状態
-  const dragState = useRef<{
+  // ドラッグ中のカードID (state — UIの見た目切替用)
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  // ドラッグ中の生データ (ref — DOM直接操作用、再レンダリングしない)
+  const dragRef = useRef<{
     postId: string;
     startX: number;
     startY: number;
     originX: number;
     originY: number;
     moved: boolean;
+    el: HTMLElement | null;
   } | null>(null);
+
+  // カード要素への参照
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -141,7 +143,6 @@ export default function FloatingView({ location, refreshKey }: Props) {
       const dist = post.distance_m ?? 0;
       const angle = bearing(location.lat, location.lng, post.lat, post.lng);
       const rng = seededRandom(post.id);
-
       const distRatio = dist / MAX_RADIUS;
       const angleRad = ((angle - 90) * Math.PI) / 180;
 
@@ -178,100 +179,104 @@ export default function FloatingView({ location, refreshKey }: Props) {
       const driftY = canTap ? 2 + rng() * 4 : 6 + rng() * 12;
 
       return {
-        ...post,
-        dist,
-        x,
-        y,
-        scale,
-        blur,
-        opacity,
-        canTap,
-        animDelay,
-        animDuration,
-        driftX,
-        driftY,
+        ...post, dist, x, y, scale, blur, opacity, canTap,
+        animDelay, animDuration, driftX, driftY,
       } as PositionedPost;
     });
 
     const adjustments = resolveOverlaps(initial);
     return initial.map((p) => {
       const adj = adjustments.get(p.id);
-      if (adj) {
-        return { ...p, x: adj.x, y: adj.y };
-      }
-      return p;
+      return adj ? { ...p, x: adj.x, y: adj.y } : p;
     });
   }, [posts, location]);
 
-  // --- ドラッグハンドラ ---
+  // --- ドラッグ: DOM直接操作 ---
 
-  const getPointerPos = (
-    e: React.TouchEvent | React.MouseEvent | TouchEvent | MouseEvent
-  ) => {
+  const getPointerPos = (e: TouchEvent | MouseEvent) => {
     if ("touches" in e) {
       const t = e.touches[0] || e.changedTouches[0];
       return { px: t.clientX, py: t.clientY };
     }
-    return { px: (e as MouseEvent).clientX, py: (e as MouseEvent).clientY };
+    return { px: e.clientX, py: e.clientY };
   };
 
-  const handleDragStart = useCallback(
+  const handlePointerDown = useCallback(
     (postId: string, currentX: number, currentY: number) =>
       (e: React.TouchEvent | React.MouseEvent) => {
-        // 遠いカードはドラッグ不可
-        const post = positioned.find((p) => p.id === postId);
-        if (!post?.canTap) return;
-
-        const { px, py } = getPointerPos(e);
-        dragState.current = {
+        const nativeE = e.nativeEvent;
+        const { px, py } = getPointerPos(nativeE as TouchEvent | MouseEvent);
+        const el = cardRefs.current[postId];
+        dragRef.current = {
           postId,
           startX: px,
           startY: py,
           originX: currentX,
           originY: currentY,
           moved: false,
+          el,
         };
       },
-    [positioned]
+    []
   );
 
-  // グローバルmove/endリスナー
   useEffect(() => {
     const handleMove = (e: TouchEvent | MouseEvent) => {
-      if (!dragState.current || !containerRef.current) return;
+      const drag = dragRef.current;
+      if (!drag || !containerRef.current || !drag.el) return;
+
       const { px, py } = getPointerPos(e);
-      const dx = px - dragState.current.startX;
-      const dy = py - dragState.current.startY;
+      const dx = px - drag.startX;
+      const dy = py - drag.startY;
 
-      // 5px以上動いたらドラッグ確定
-      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-        dragState.current.moved = true;
+      if (!drag.moved && Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+
+      if (!drag.moved) {
+        drag.moved = true;
+        setDraggingId(drag.postId);
+        // アニメーション即停止 + スタイル切替
+        drag.el.style.animation = "none";
+        drag.el.style.transition = "none";
+        drag.el.style.zIndex = "40";
       }
-      if (!dragState.current.moved) return;
 
-      // ブラウザスクロール防止
       e.preventDefault();
 
       const rect = containerRef.current.getBoundingClientRect();
-      const newX = dragState.current.originX + (dx / rect.width) * 100;
-      const newY = dragState.current.originY + (dy / rect.height) * 100;
+      const newX = drag.originX + (dx / rect.width) * 100;
+      const newY = drag.originY + (dy / rect.height) * 100;
+      const clampedX = Math.min(95, Math.max(5, newX));
+      const clampedY = Math.min(95, Math.max(5, newY));
 
-      setDraggedPositions((prev) => ({
-        ...prev,
-        [dragState.current!.postId]: {
-          x: Math.min(95, Math.max(5, newX)),
-          y: Math.min(95, Math.max(5, newY)),
-        },
-      }));
+      // DOM直接操作 — setState しない
+      drag.el.style.left = `${clampedX}%`;
+      drag.el.style.top = `${clampedY}%`;
     };
 
     const handleEnd = () => {
-      if (dragState.current && !dragState.current.moved) {
-        // 動いていなければタップとして扱う
-        const postId = dragState.current.postId;
-        setSelectedPost((prev) => (prev === postId ? null : postId));
+      const drag = dragRef.current;
+      if (!drag) return;
+
+      if (drag.moved && drag.el && containerRef.current) {
+        // 現在のDOM位置を確定
+        const left = parseFloat(drag.el.style.left);
+        const top = parseFloat(drag.el.style.top);
+        drag.el.style.transition = "";
+        drag.el.style.zIndex = "";
+        setSettledPositions((prev) => ({
+          ...prev,
+          [drag.postId]: { x: left, y: top },
+        }));
+        setDraggingId(null);
+      } else {
+        // 動いてない → タップ
+        setSelectedPost((prev) =>
+          prev === drag.postId ? null : drag.postId
+        );
+        setDraggingId(null);
       }
-      dragState.current = null;
+
+      dragRef.current = null;
     };
 
     window.addEventListener("touchmove", handleMove, { passive: false });
@@ -323,7 +328,6 @@ export default function FloatingView({ location, refreshKey }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* 浮遊空間 */}
       <div
         ref={containerRef}
         className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100/80 select-none"
@@ -334,47 +338,33 @@ export default function FloatingView({ location, refreshKey }: Props) {
           touchAction: "none",
         }}
       >
-        {/* 中心マーカー（自分） */}
+        {/* 中心マーカー */}
         <div
-          className="absolute z-20 flex items-center justify-center pointer-events-none"
-          style={{
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
+          className="absolute z-20 pointer-events-none"
+          style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}
         >
           <div className="h-2 w-2 rounded-full bg-indigo-400" />
-          <div className="absolute h-8 w-8 animate-ping rounded-full bg-indigo-200 opacity-20" />
+          <div className="absolute inset-0 h-8 w-8 -translate-x-3 -translate-y-3 animate-ping rounded-full bg-indigo-200 opacity-20" />
         </div>
 
-        {/* 浮遊カード */}
+        {/* カード */}
         {positioned.map((post) => {
           const isSelected = selectedPost === post.id;
-          const isDragged = post.id in draggedPositions;
-          const isBeingDragged =
-            dragState.current?.postId === post.id &&
-            dragState.current?.moved;
+          const isBeingDragged = draggingId === post.id;
+          const isSettled = post.id in settledPositions;
           const preview = visibleText(post.text, post.dist);
           const isNearby = post.canTap;
 
-          // ドラッグ済みの位置があればそちらを使う
-          const currentX = draggedPositions[post.id]?.x ?? post.x;
-          const currentY = draggedPositions[post.id]?.y ?? post.y;
-
-          // ドラッグ中 or 選択中 or ドラッグ済みはアニメーション停止
-          const stopAnim = isSelected || isBeingDragged || isDragged;
+          const currentX = settledPositions[post.id]?.x ?? post.x;
+          const currentY = settledPositions[post.id]?.y ?? post.y;
+          const stopAnim = isSelected || isBeingDragged || isSettled;
 
           return (
             <div
               key={post.id}
+              ref={(el) => { cardRefs.current[post.id] = el; }}
               className={`absolute ${
-                isBeingDragged
-                  ? "z-40"
-                  : isSelected
-                  ? "z-30"
-                  : isNearby
-                  ? "z-15"
-                  : "z-10"
+                isBeingDragged ? "z-40" : isSelected ? "z-30" : "z-10"
               }`}
               style={{
                 left: `${currentX}%`,
@@ -382,23 +372,16 @@ export default function FloatingView({ location, refreshKey }: Props) {
                 transform: `translate(-50%, -50%) scale(${
                   isBeingDragged ? 1.1 : isSelected ? 1.05 : post.scale
                 })`,
-                transition: isBeingDragged
-                  ? "none"
-                  : "all 0.5s ease",
+                transition: isBeingDragged ? "none" : "transform 0.4s ease, opacity 0.4s ease",
                 animation: stopAnim
                   ? "none"
                   : `float-${post.id.slice(0, 8)} ${post.animDuration}s ease-in-out ${post.animDelay}s infinite`,
               }}
-              // ドラッグ開始 (タップ可能カードのみ)
               onTouchStart={
-                isNearby
-                  ? handleDragStart(post.id, currentX, currentY)
-                  : undefined
+                isNearby ? handlePointerDown(post.id, currentX, currentY) : undefined
               }
               onMouseDown={
-                isNearby
-                  ? handleDragStart(post.id, currentX, currentY)
-                  : undefined
+                isNearby ? handlePointerDown(post.id, currentX, currentY) : undefined
               }
             >
               {!stopAnim && (
@@ -412,29 +395,25 @@ export default function FloatingView({ location, refreshKey }: Props) {
               )}
 
               <div
-                className={`block rounded-xl px-3 py-2 text-left transition-shadow duration-300 ${
+                className={`block rounded-xl px-3 py-2 text-left ${
                   isSelected
                     ? "max-w-[200px] bg-white shadow-lg ring-2 ring-indigo-200"
                     : isBeingDragged
                     ? "max-w-[180px] bg-white shadow-xl ring-2 ring-indigo-300"
                     : isNearby
-                    ? "max-w-[160px] bg-white/90 shadow-md cursor-grab active:cursor-grabbing"
+                    ? "max-w-[160px] bg-white/90 shadow-md cursor-grab"
                     : "max-w-[120px] bg-white/40 shadow-none"
                 }`}
                 style={{
                   filter:
-                    isSelected || isBeingDragged
-                      ? "none"
-                      : `blur(${post.blur}px)`,
+                    isSelected || isBeingDragged ? "none" : `blur(${post.blur}px)`,
                   opacity:
                     isSelected || isBeingDragged ? 1 : post.opacity,
                 }}
               >
                 <p
                   className={`leading-relaxed text-gray-700 ${
-                    isNearby
-                      ? "text-xs line-clamp-4"
-                      : "text-[10px] line-clamp-2"
+                    isNearby ? "text-xs line-clamp-4" : "text-[10px] line-clamp-2"
                   }`}
                 >
                   {preview}
@@ -445,7 +424,7 @@ export default function FloatingView({ location, refreshKey }: Props) {
         })}
       </div>
 
-      {/* 選択した投稿の詳細 */}
+      {/* 詳細 */}
       {selectedData && (
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
