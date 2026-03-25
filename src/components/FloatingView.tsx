@@ -108,6 +108,9 @@ export default function FloatingView({ location, refreshKey }: Props) {
   // ドラッグ中のカードID (state — UIの見た目切替用)
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
+  // ミニマップの展開状態
+  const [mapExpanded, setMapExpanded] = useState(false);
+
   // ドラッグ中の生データ (ref — DOM直接操作用、再レンダリングしない)
   const dragRef = useRef<{
     postId: string;
@@ -338,12 +341,32 @@ export default function FloatingView({ location, refreshKey }: Props) {
           touchAction: "none",
         }}
       >
-        {/* ミニマップ（右下） */}
+        {/* ミニマップ（右下 — タップで拡大） */}
+        {mapExpanded && (
+          <div
+            className="absolute inset-0 z-50 bg-black/20"
+            onClick={() => setMapExpanded(false)}
+          />
+        )}
         <div
-          className="absolute z-50 pointer-events-none"
-          style={{ right: "12px", bottom: "12px", width: "100px", height: "100px" }}
+          className={`absolute z-50 transition-all duration-300 ease-in-out ${
+            mapExpanded ? "inset-4" : ""
+          }`}
+          style={
+            mapExpanded
+              ? {}
+              : { right: "12px", bottom: "12px", width: "100px", height: "100px" }
+          }
+          onClick={(e) => {
+            e.stopPropagation();
+            setMapExpanded(!mapExpanded);
+          }}
         >
-          <div className="relative w-full h-full rounded-full bg-white/70 backdrop-blur-sm shadow-md overflow-hidden">
+          <div
+            className={`relative w-full h-full rounded-full bg-white/80 backdrop-blur-sm shadow-md overflow-hidden cursor-pointer transition-all duration-300 ${
+              mapExpanded ? "shadow-xl" : ""
+            }`}
+          >
             {/* 同心円 */}
             {[100, 200, 300, 400, 500].map((r) => {
               const size = (r / MAX_RADIUS) * 90;
@@ -357,13 +380,32 @@ export default function FloatingView({ location, refreshKey }: Props) {
                     left: `${50 - size / 2}%`,
                     top: `${50 - size / 2}%`,
                   }}
-                />
+                >
+                  {mapExpanded && (
+                    <span
+                      className="absolute text-gray-300"
+                      style={{
+                        fontSize: "9px",
+                        top: "-5px",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                      }}
+                    >
+                      {r}m
+                    </span>
+                  )}
+                </div>
               );
             })}
             {/* 北の表示 */}
             <span
               className="absolute text-gray-400 font-medium"
-              style={{ fontSize: "7px", top: "2px", left: "50%", transform: "translateX(-50%)" }}
+              style={{
+                fontSize: mapExpanded ? "11px" : "7px",
+                top: mapExpanded ? "6px" : "2px",
+                left: "50%",
+                transform: "translateX(-50%)",
+              }}
             >
               N
             </span>
@@ -374,28 +416,45 @@ export default function FloatingView({ location, refreshKey }: Props) {
               const angleRad = ((angle - 90) * Math.PI) / 180;
               const dotX = 50 + r * Math.cos(angleRad);
               const dotY = 50 + r * Math.sin(angleRad);
+              const dotSize = mapExpanded
+                ? post.canTap ? 10 : 6
+                : post.canTap ? 5 : 3;
               return (
                 <div
                   key={post.id}
-                  className="absolute rounded-full"
+                  className="absolute rounded-full transition-all duration-300"
                   style={{
-                    width: post.canTap ? "5px" : "3px",
-                    height: post.canTap ? "5px" : "3px",
+                    width: `${dotSize}px`,
+                    height: `${dotSize}px`,
                     backgroundColor: post.canTap ? "#6366f1" : "#9ca3af",
                     opacity: post.canTap ? 1 : 0.5,
                     left: `${dotX}%`,
                     top: `${dotY}%`,
                     transform: "translate(-50%, -50%)",
                   }}
-                />
+                >
+                  {mapExpanded && (
+                    <span
+                      className="absolute whitespace-nowrap text-gray-500 pointer-events-none"
+                      style={{
+                        fontSize: "8px",
+                        left: `${dotSize + 3}px`,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                      }}
+                    >
+                      {Math.round(post.dist)}m
+                    </span>
+                  )}
+                </div>
               );
             })}
             {/* 自分（中心） */}
             <div
               className="absolute rounded-full bg-indigo-500"
               style={{
-                width: "5px",
-                height: "5px",
+                width: mapExpanded ? "8px" : "5px",
+                height: mapExpanded ? "8px" : "5px",
                 left: "50%",
                 top: "50%",
                 transform: "translate(-50%, -50%)",
