@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useGeolocation } from "@/lib/hooks";
 import PostForm from "@/components/PostForm";
-import RadarView from "@/components/RadarView";
+import FloatingView from "@/components/FloatingView";
 
 export default function Home() {
   const { location, error, loading, refresh } = useGeolocation();
@@ -52,8 +52,8 @@ export default function Home() {
           </p>
         </header>
 
-        {/* Radar View */}
-        <RadarView location={location} refreshKey={refreshKey} />
+        {/* Floating View */}
+        <FloatingView location={location} refreshKey={refreshKey} />
 
         {/* Post Form */}
         <div className="mt-6">
