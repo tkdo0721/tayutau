@@ -13,7 +13,6 @@ interface Props {
 
 const MAX_RADIUS = 500;
 const TAP_RADIUS = 50;
-const DROP_ZONE_THRESHOLD = 20; // 画面左20%がドロップゾーン
 
 function bearing(lat1: number, lng1: number, lat2: number, lng2: number) {
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -109,9 +108,6 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
 
   // ドラッグ中のカードID
   const [draggingId, setDraggingId] = useState<string | null>(null);
-
-  // ドロップゾーンにホバー中か
-  const [overDropZone, setOverDropZone] = useState(false);
 
   // ミニマップの展開状態
   const [mapExpanded, setMapExpanded] = useState(false);
@@ -265,10 +261,6 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
       // DOM直接操作
       drag.el.style.left = `${clampedX}%`;
       drag.el.style.top = `${clampedY}%`;
-
-      // ドロップゾーン判定（画面左側20%）
-      const pxRatio = (px - rect.left) / rect.width * 100;
-      setOverDropZone(pxRatio < DROP_ZONE_THRESHOLD);
     };
 
     const handleEnd = (e: TouchEvent | MouseEvent) => {
@@ -276,41 +268,16 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
       if (!drag) return;
 
       if (drag.moved && drag.el && containerRef.current) {
-        // ドロップゾーンに入っていたら → コメント画面を開く
-        const { px } = getPointerPos(e);
-        const rect = containerRef.current.getBoundingClientRect();
-        const pxRatio = (px - rect.left) / rect.width * 100;
-
-        if (pxRatio < DROP_ZONE_THRESHOLD) {
-          // コメント画面を開く
-          const post = positioned.find((p) => p.id === drag.postId);
-          if (post) {
-            setCommentPost(post);
-          }
-          // カードの位置を元に戻す
-          const origPost = positioned.find((p) => p.id === drag.postId);
-          if (origPost) {
-            const origX = settledPositions[drag.postId]?.x ?? origPost.x;
-            const origY = settledPositions[drag.postId]?.y ?? origPost.y;
-            drag.el.style.left = `${origX}%`;
-            drag.el.style.top = `${origY}%`;
-          }
-          drag.el.style.transition = "";
-          drag.el.style.zIndex = "";
-        } else {
-          // 通常のドラッグ完了 → 位置確定
-          const left = parseFloat(drag.el.style.left);
-          const top = parseFloat(drag.el.style.top);
-          drag.el.style.transition = "";
-          drag.el.style.zIndex = "";
-          setSettledPositions((prev) => ({
-            ...prev,
-            [drag.postId]: { x: left, y: top },
-          }));
-        }
-
+        // ドラッグ完了 → 位置確定
+        const left = parseFloat(drag.el.style.left);
+        const top = parseFloat(drag.el.style.top);
+        drag.el.style.transition = "";
+        drag.el.style.zIndex = "";
+        setSettledPositions((prev) => ({
+          ...prev,
+          [drag.postId]: { x: left, y: top },
+        }));
         setDraggingId(null);
-        setOverDropZone(false);
       } else {
         // 動いてない → タップ → コメント画面を開く
         const post = positioned.find((p) => p.id === drag.postId);
@@ -398,37 +365,6 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
         className="absolute inset-0 select-none"
         style={{ touchAction: "none" }}
       >
-        {/* ドロップゾーン（ドラッグ中のみ表示） */}
-        {draggingId && (
-          <div
-            className={`absolute left-0 top-0 bottom-0 z-30 flex items-center justify-center transition-all duration-200 ${
-              overDropZone
-                ? "bg-indigo-100/60 backdrop-blur-sm"
-                : "bg-transparent"
-            }`}
-            style={{ width: `${DROP_ZONE_THRESHOLD}%` }}
-          >
-            <div
-              className={`flex flex-col items-center gap-2 transition-all duration-200 ${
-                overDropZone ? "opacity-100 scale-100" : "opacity-40 scale-90"
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                overDropZone ? "bg-indigo-400 text-white" : "bg-gray-300/60 text-gray-500"
-              }`}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </div>
-              <span className={`text-xs font-medium whitespace-nowrap ${
-                overDropZone ? "text-indigo-600" : "text-gray-400"
-              }`}>
-                ここで開く
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* ミニマップ（右下 — タップで拡大） */}
         {mapExpanded && (
           <div
@@ -726,10 +662,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
             className="w-full max-w-lg bg-white rounded-t-2xl p-5 shadow-xl animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-gray-700">
-                いまここで何を感じていますか？
-              </h2>
+            <div className="flex items-center justify-end mb-3">
               <button
                 onClick={() => {
                   setShowPostForm(false);
