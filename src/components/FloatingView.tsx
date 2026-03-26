@@ -657,43 +657,47 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
 
       {/* 投稿モーダル */}
       {showPostForm && (
-        <div className="absolute inset-0 z-[60] flex items-end justify-center bg-black/30 backdrop-blur-sm">
+        <div
+          className="absolute inset-0 z-[60] bg-black/30 backdrop-blur-sm"
+          onClick={() => {
+            setShowPostForm(false);
+            setPostText("");
+          }}
+        >
           <div
-            className="w-full max-w-lg bg-white rounded-t-2xl p-5 shadow-xl animate-slide-up"
+            className="absolute top-0 left-0 right-0 bg-white rounded-b-2xl p-5 shadow-xl animate-slide-down"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-end mb-3">
-              <button
-                onClick={() => {
-                  setShowPostForm(false);
-                  setPostText("");
-                }}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
             <textarea
               value={postText}
               onChange={(e) => setPostText(e.target.value)}
               placeholder="この場所に言葉を残す…"
               maxLength={500}
-              rows={4}
+              rows={3}
               autoFocus
+              autoComplete="off"
               className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none"
             />
             <div className="mt-3 flex items-center justify-between">
               <span className="text-xs text-gray-400">{postText.length}/500</span>
-              <button
-                onClick={handlePost}
-                disabled={!postText.trim() || postSubmitting}
-                className="rounded-lg bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {postSubmitting ? "送信中…" : "投稿する"}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setShowPostForm(false);
+                    setPostText("");
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition"
+                >
+                  やめる
+                </button>
+                <button
+                  onClick={handlePost}
+                  disabled={!postText.trim() || postSubmitting}
+                  className="rounded-lg bg-indigo-500 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {postSubmitting ? "送信中…" : "投稿する"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -754,6 +758,13 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
         }
         .animate-slide-up {
           animation: slide-up 0.3s ease-out;
+        }
+        @keyframes slide-down {
+          from { transform: translateY(-100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
         }
       `}</style>
     </div>
