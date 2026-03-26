@@ -42,7 +42,7 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { text, lat, lng } = body;
+  const { text, lat, lng, device_id } = body;
 
   if (!text || typeof lat !== "number" || typeof lng !== "number") {
     return NextResponse.json(
@@ -60,7 +60,7 @@ export async function POST(
 
   const { data, error } = await getSupabase()
     .from("comments")
-    .insert({ post_id: id, text, lat, lng })
+    .insert({ post_id: id, text, lat, lng, device_id: device_id || null })
     .select()
     .single();
 

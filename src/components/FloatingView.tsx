@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Post, GeoLocation } from "@/lib/types";
+import { getDeviceId } from "@/lib/deviceId";
 import CommentSection from "./CommentSection";
 
 interface Props {
@@ -333,6 +334,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
           text: postText.trim(),
           lat: location.lat,
           lng: location.lng,
+          device_id: getDeviceId(),
         }),
       });
       if (res.ok) {
@@ -769,6 +771,25 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
             <p className="text-gray-800 text-sm whitespace-pre-wrap leading-relaxed">
               {commentPost.text}
             </p>
+            {commentPost.device_id === getDeviceId() && (
+              <button
+                onClick={async () => {
+                  if (!confirm("この投稿を削除しますか？")) return;
+                  const res = await fetch(`/api/posts/${commentPost.id}`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ device_id: getDeviceId() }),
+                  });
+                  if (res.ok) {
+                    setCommentPost(null);
+                    onPosted();
+                  }
+                }}
+                className="mt-3 text-xs text-gray-400 hover:text-red-400 transition"
+              >
+                この投稿を削除
+              </button>
+            )}
           </div>
 
           {/* コメント一覧 + 入力 */}

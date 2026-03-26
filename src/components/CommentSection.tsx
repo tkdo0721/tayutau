@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Comment, GeoLocation } from "@/lib/types";
+import { getDeviceId } from "@/lib/deviceId";
 
 const COMMENT_RADIUS_M = 50;
 
@@ -74,6 +75,7 @@ export default function CommentSection({
           text: text.trim(),
           lat: location.lat,
           lng: location.lng,
+          device_id: getDeviceId(),
         }),
       });
       if (res.ok) {
@@ -111,9 +113,30 @@ export default function CommentSection({
                   <p className="text-sm text-gray-700 leading-relaxed">
                     {c.text}
                   </p>
-                  <span className="text-xs text-gray-400 mt-1 block">
-                    {timeAgo(c.created_at)}
-                  </span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-gray-400">
+                      {timeAgo(c.created_at)}
+                    </span>
+                    {c.device_id === getDeviceId() && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm("このコメントを削除しますか？")) return;
+                          const res = await fetch(
+                            `/api/posts/${postId}/comments/${c.id}`,
+                            {
+                              method: "DELETE",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ device_id: getDeviceId() }),
+                            }
+                          );
+                          if (res.ok) fetchComments();
+                        }}
+                        className="text-xs text-gray-400 hover:text-red-400 transition"
+                      >
+                        削除
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

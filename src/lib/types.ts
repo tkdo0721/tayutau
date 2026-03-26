@@ -5,6 +5,7 @@ export interface Post {
   lng: number;
   created_at: string;
   distance_m?: number;
+  device_id?: string;
 }
 
 export interface Comment {
@@ -15,6 +16,7 @@ export interface Comment {
   lng: number;
   created_at: string;
   distance_m?: number;
+  device_id?: string;
 }
 
 export interface GeoLocation {

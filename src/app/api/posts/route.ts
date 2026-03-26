@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 // POST /api/posts  body: { text, lat, lng }
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { text, lat, lng } = body;
+  const { text, lat, lng, device_id } = body;
 
   if (!text || typeof lat !== "number" || typeof lng !== "number") {
     return NextResponse.json(
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await getSupabase()
     .from("posts")
-    .insert({ text, lat, lng })
+    .insert({ text, lat, lng, device_id: device_id || null })
     .select()
     .single();
 
