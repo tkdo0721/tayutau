@@ -64,7 +64,7 @@ http://localhost:3000 を開くと、位置情報の許可を求められます�
 | カラム      | 型                | 説明                        |
 |------------|-------------------|-----------------------------|
 | id         | uuid (PK)         | 自動生成                     |
-| text       | text              | 投稿本文 (500文字以内)        |
+| text       | text              | 投稿本文 (200文字以内)        |
 | lat        | double precision  | 緯度                         |
 | lng        | double precision  | 経度                         |
 | location   | geography(Point)  | Generated Column (PostGIS)   |
@@ -76,7 +76,7 @@ http://localhost:3000 を開くと、位置情報の許可を求められます�
 |------------|-------------------|------------------------------|
 | id         | uuid (PK)         | 自動生成                      |
 | post_id    | uuid (FK → posts) | 親投稿                        |
-| text       | text              | コメント本文 (300文字以内)      |
+| text       | text              | コメント本文 (140文字以内)      |
 | lat        | double precision  | 緯度                          |
 | lng        | double precision  | 経度                          |
 | location   | geography(Point)  | Generated Column (PostGIS)    |

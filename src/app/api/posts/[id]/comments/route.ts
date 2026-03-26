@@ -51,9 +51,9 @@ export async function POST(
     );
   }
 
-  if (text.length > 300) {
+  if (text.length > 140) {
     return NextResponse.json(
-      { error: "コメントは300文字以内にしてください" },
+      { error: "コメントは140文字以内にしてください" },
       { status: 400 }
     );
   }

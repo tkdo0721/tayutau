@@ -686,8 +686,8 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
               onInput={(e) => {
                 const el = e.currentTarget;
                 const text = el.innerText || "";
-                if (text.length > 500) {
-                  el.innerText = text.slice(0, 500);
+                if (text.length > 200) {
+                  el.innerText = text.slice(0, 200);
                   // カーソルを末尾に
                   const sel = window.getSelection();
                   if (sel) {
@@ -712,7 +712,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
               suppressContentEditableWarning
             />
             <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs text-gray-400">{postText.length}/500</span>
+              <span className="text-xs text-gray-400">{postText.length}/200</span>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => {

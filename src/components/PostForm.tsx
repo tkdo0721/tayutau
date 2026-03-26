@@ -38,12 +38,12 @@ export default function PostForm({ location, onPosted }: Props) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="いまここで何を感じていますか？"
-        maxLength={500}
+        maxLength={200}
         rows={3}
         className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none"
       />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-xs text-gray-400">{text.length}/500</span>
+        <span className="text-xs text-gray-400">{text.length}/200</span>
         <button
           type="submit"
           disabled={!text.trim() || submitting}

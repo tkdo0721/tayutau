@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (text.length > 500) {
+  if (text.length > 200) {
     return NextResponse.json(
-      { error: "投稿は500文字以内にしてください" },
+      { error: "投稿は200文字以内にしてください" },
       { status: 400 }
     );
   }
