@@ -123,16 +123,16 @@ export default function AdminPage() {
   }, [postsOffset, searchQuery]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (authed) fetchStats();
+  }, [authed, fetchStats]);
 
   useEffect(() => {
-    if (tab === "map") fetchMap();
-  }, [tab, fetchMap]);
+    if (authed && tab === "map") fetchMap();
+  }, [authed, tab, fetchMap]);
 
   useEffect(() => {
-    if (tab === "posts") fetchPosts();
-  }, [tab, fetchPosts]);
+    if (authed && tab === "posts") fetchPosts();
+  }, [authed, tab, fetchPosts]);
 
   // 管理者削除
   const deletePost = async (id: string) => {
@@ -148,7 +148,7 @@ export default function AdminPage() {
 
   // Leaflet 動的読み込み（SSR回避）
   useEffect(() => {
-    if (tab !== "map" || mapLoaded) return;
+    if (!authed || tab !== "map" || mapLoaded) return;
 
     // CSS
     if (!document.getElementById("leaflet-css")) {
@@ -168,11 +168,11 @@ export default function AdminPage() {
     } else {
       setMapLoaded(true);
     }
-  }, [tab, mapLoaded]);
+  }, [authed, tab, mapLoaded]);
 
   // 地図描画
   useEffect(() => {
-    if (!mapLoaded || tab !== "map" || pins.length === 0) return;
+    if (!authed || !mapLoaded || tab !== "map") return;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const L = (window as any).L;
