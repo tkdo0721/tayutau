@@ -119,6 +119,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
   const [showPostForm, setShowPostForm] = useState(false);
   const [postText, setPostText] = useState("");
   const [postSubmitting, setPostSubmitting] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // ドラッグ中の生データ (ref)
   const dragRef = useRef<{
@@ -313,6 +314,13 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
     return `${Math.floor(hours / 24)}日前`;
   };
 
+  // モーダル開いたらフォーカス
+  useEffect(() => {
+    if (showPostForm && editorRef.current) {
+      setTimeout(() => editorRef.current?.focus(), 100);
+    }
+  }, [showPostForm]);
+
   // 投稿送信
   const handlePost = async () => {
     if (!postText.trim() || postSubmitting) return;
@@ -329,6 +337,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
       });
       if (res.ok) {
         setPostText("");
+        if (editorRef.current) editorRef.current.innerText = "";
         setShowPostForm(false);
         onPosted();
       }
@@ -662,21 +671,45 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
           onClick={() => {
             setShowPostForm(false);
             setPostText("");
+            if (editorRef.current) editorRef.current.innerText = "";
           }}
         >
           <div
             className="absolute top-0 left-0 right-0 bg-white rounded-b-2xl p-5 shadow-xl animate-slide-down"
             onClick={(e) => e.stopPropagation()}
           >
-            <textarea
-              value={postText}
-              onChange={(e) => setPostText(e.target.value)}
-              placeholder="この場所に言葉を残す…"
-              maxLength={500}
-              rows={3}
-              autoFocus
-              autoComplete="off"
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none"
+            <div
+              ref={editorRef}
+              contentEditable
+              role="textbox"
+              aria-placeholder="この場所に言葉を残す…"
+              onInput={(e) => {
+                const el = e.currentTarget;
+                const text = el.innerText || "";
+                if (text.length > 500) {
+                  el.innerText = text.slice(0, 500);
+                  // カーソルを末尾に
+                  const sel = window.getSelection();
+                  if (sel) {
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                  }
+                }
+                setPostText(el.innerText || "");
+              }}
+              onFocus={(e) => {
+                if (!e.currentTarget.innerText) {
+                  e.currentTarget.dataset.empty = "true";
+                }
+              }}
+              onBlur={(e) => {
+                delete e.currentTarget.dataset.empty;
+              }}
+              className="w-full min-h-[80px] max-h-[120px] overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-100 empty:before:content-[attr(aria-placeholder)] empty:before:text-gray-400"
+              suppressContentEditableWarning
             />
             <div className="mt-3 flex items-center justify-between">
               <span className="text-xs text-gray-400">{postText.length}/500</span>
@@ -685,6 +718,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
                   onClick={() => {
                     setShowPostForm(false);
                     setPostText("");
+                    if (editorRef.current) editorRef.current.innerText = "";
                   }}
                   className="text-xs text-gray-400 hover:text-gray-600 transition"
                 >
