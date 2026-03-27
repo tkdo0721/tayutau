@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tayutau — ここにいる、だれかの声</title>
+<meta name="description" content="場所に言葉を残す。その場所に来た人だけが読める、匿名のメッセージアプリ。">
+<meta property="og:title" content="Tayutau — ここにいる、だれかの声">
+<meta property="og:description" content="場所に言葉を残す。その場所に来た人だけが読める、匿名のメッセージアプリ。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tayutau.vercel.app/guide.html">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&family=Shippori+Mincho:wght@400;500;600&family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400&display=swap');
+
+  :root {
+    --ink: #1a1714;
+    --paper: #ffffff;
+    --sepia: #8a6a4a;
+    --fog: #7a6e65;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Serif JP', serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 8vw 8vw 12vw;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 60% at 50% 60%, rgba(138,106,74,0.05) 0%, transparent 70%);
+  }
+
+  .hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(4rem, 12vw, 9rem);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-title-ja {
+    display: block;
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(0.9rem, 2.2vw, 1.6rem);
+    font-weight: 400;
+    letter-spacing: 0.5em;
+    color: var(--sepia);
+    margin-top: 1.5rem;
+  }
+
+  .hero-lead {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1rem, 2vw, 1.3rem);
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    line-height: 2.4;
+    color: var(--fog);
+    margin-top: 4rem;
+    max-width: 28ch;
+    position: relative;
+    z-index: 1;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 4vh;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: rgba(138,106,74,0.4);
+    z-index: 1;
+  }
+
+  .scroll-hint::after {
+    content: '';
+    display: block;
+    width: 1px;
+    height: 40px;
+    background: rgba(138,106,74,0.25);
+    margin: 0.8rem auto 0;
+    animation: scroll-line 2s ease-in-out infinite;
+  }
+
+  @keyframes scroll-line {
+    0%, 100% { opacity: 0.2; transform: scaleY(0.5); }
+    50% { opacity: 1; transform: scaleY(1); }
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    padding: 12vw 8vw;
+    position: relative;
+  }
+
+  .bg-warm { background: #f8f5f0; }
+  .bg-aged { background: #f2ede4; }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: var(--sepia);
+    opacity: 0.6;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .section-heading {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.5rem, 4vw, 2.8rem);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    line-height: 1.6;
+    color: var(--ink);
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .section-heading em {
+    font-style: normal;
+    color: var(--sepia);
+  }
+
+  /* ── CONCEPT ── */
+  .concept {
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .concept p {
+    font-size: clamp(0.9rem, 1.4vw, 1.05rem);
+    line-height: 2.4;
+    color: rgba(26,23,20,0.6);
+    letter-spacing: 0.05em;
+    margin-top: 2.5rem;
+  }
+
+  .concept-quote {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    line-height: 2.2;
+    color: rgba(26,23,20,0.7);
+    margin: 4rem auto;
+    max-width: 500px;
+    padding: 2.5rem 0;
+    border-top: 1px solid rgba(138,106,74,0.2);
+    border-bottom: 1px solid rgba(138,106,74,0.2);
+  }
+
+  /* ── NOT / IS ── */
+  .contrast {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .contrast-row {
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(138,106,74,0.08);
+  }
+
+  .contrast-mark {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    width: 1.2rem;
+    text-align: center;
+  }
+
+  .contrast-mark.no { color: rgba(138,106,74,0.3); }
+  .contrast-mark.yes { color: var(--sepia); }
+
+  .contrast-text {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(0.9rem, 1.3vw, 1.05rem);
+    letter-spacing: 0.08em;
+    line-height: 1.8;
+  }
+
+  .contrast-text.faded {
+    color: rgba(26,23,20,0.25);
+    text-decoration: line-through;
+    text-decoration-color: rgba(138,106,74,0.2);
+  }
+
+  .contrast-text.active {
+    color: var(--ink);
+  }
+
+  .contrast-divider {
+    height: 2rem;
+  }
+
+  /* ── HOW TO USE ── */
+  .steps {
+    max-width: 500px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 3.5rem 1fr;
+    gap: 1.5rem;
+    padding-bottom: 2.5rem;
+    position: relative;
+  }
+
+  .step:last-child { padding-bottom: 0; }
+
+  .step::before {
+    content: '';
+    position: absolute;
+    left: 1.65rem;
+    top: 2.5rem;
+    bottom: 0;
+    width: 1px;
+    background: rgba(138,106,74,0.12);
+  }
+
+  .step:last-child::before { display: none; }
+
+  .step-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.8rem;
+    color: rgba(138,106,74,0.25);
+    line-height: 1;
+    text-align: center;
+    padding-top: 0.2rem;
+  }
+
+  .step-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1rem, 1.5vw, 1.15rem);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+    margin-bottom: 0.4rem;
+  }
+
+  .step-desc {
+    font-size: clamp(0.82rem, 1.2vw, 0.9rem);
+    line-height: 2;
+    color: rgba(26,23,20,0.45);
+    letter-spacing: 0.03em;
+  }
+
+  /* ── CTA ── */
+  .cta {
+    min-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(138,106,74,0.06) 0%, transparent 70%);
+  }
+
+  .cta-text {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.3rem, 3.5vw, 2.5rem);
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    color: var(--ink);
+    line-height: 2;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 3rem;
+  }
+
+  .cta-button {
+    display: inline-block;
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(0.95rem, 1.5vw, 1.1rem);
+    letter-spacing: 0.15em;
+    color: var(--paper);
+    background: var(--ink);
+    text-decoration: none;
+    padding: 1rem 3rem;
+    border-radius: 2px;
+    position: relative;
+    z-index: 1;
+    transition: background 0.3s, transform 0.2s;
+  }
+
+  .cta-button:hover {
+    background: #3d3530;
+    transform: translateY(-1px);
+  }
+
+  .cta-button:active {
+    transform: translateY(0);
+  }
+
+  .cta-note {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: rgba(138,106,74,0.45);
+    margin-top: 2rem;
+    position: relative;
+    z-index: 1;
+    line-height: 2;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    padding: 3rem 8vw;
+    text-align: center;
+  }
+
+  .footer p {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: rgba(138,106,74,0.35);
+    line-height: 2.5;
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 600px) {
+    section { padding: 15vw 7vw; }
+    .hero { padding: 12vw 7vw 16vw; }
+    .contrast-row { gap: 1rem; }
+    .step { grid-template-columns: 2.8rem 1fr; gap: 1rem; }
+    .step::before { left: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <h1 class="hero-title">
+    Tayutau
+    <span class="hero-title-ja">た ゆ た う</span>
+  </h1>
+  <p class="hero-lead">
+    歩いていたら、<br>
+    誰かの言葉が流れてきた。
+  </p>
+  <div class="scroll-hint">SCROLL</div>
+</div>
+
+<!-- ── CONCEPT ── -->
+<section class="bg-warm">
+  <p class="section-label">CONCEPT</p>
+  <h2 class="section-heading">場所に、言葉を残す。</h2>
+  <div class="concept">
+    <p>
+      旅館や喫茶店に置いてあった、あのノート。<br>
+      知らない人の一言に、なぜか胸の奥がやわらかくなる。
+    </p>
+    <p>
+      Tayutauは、そんな感覚を街にひろげるアプリです。<br>
+      あなたが立っている場所の近くに、<br>
+      誰かが残した言葉がある。<br>
+      書いた人はもういないかもしれない。<br>
+      でも確かに、誰かがここに立ち止まった。
+    </p>
+    <div class="concept-quote">
+      自分だけの場所だと思っていたら、<br>
+      他の人も大切にしている場所だった。
+    </div>
+    <p>
+      名前もアカウントもいりません。<br>
+      ブラウザで開いて、歩くだけ。
+    </p>
+  </div>
+</section>
+
+<!-- ── NOT / IS ── -->
+<section>
+  <p class="section-label">WHAT THIS IS</p>
+  <h2 class="section-heading">Tayutauに<em>ないもの</em>と、<br><em>あるもの</em>。</h2>
+  <div class="contrast">
+    <div class="contrast-row">
+      <span class="contrast-mark no">×</span>
+      <span class="contrast-text faded">いいね・フォロー・シェア</span>
+    </div>
+    <div class="contrast-row">
+      <span class="contrast-mark no">×</span>
+      <span class="contrast-text faded">写真・動画</span>
+    </div>
+    <div class="contrast-row">
+      <span class="contrast-mark no">×</span>
+      <span class="contrast-text faded">検索・通知</span>
+    </div>
+    <div class="contrast-row">
+      <span class="contrast-mark no">×</span>
+      <span class="contrast-text faded">アカウント登録</span>
+    </div>
+    <div class="contrast-divider"></div>
+    <div class="contrast-row">
+      <span class="contrast-mark yes">○</span>
+      <span class="contrast-text active">その場所に来た人だけが読める言葉</span>
+    </div>
+    <div class="contrast-row">
+      <span class="contrast-mark yes">○</span>
+      <span class="contrast-text active">歩くことで出会う、知らない誰かの声</span>
+    </div>
+    <div class="contrast-row">
+      <span class="contrast-mark yes">○</span>
+      <span class="contrast-text active">評価されない、静かな場所</span>
+    </div>
+    <div class="contrast-row">
+      <span class="contrast-mark yes">○</span>
+      <span class="contrast-text active">言葉が、場所にたゆたう。</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW TO USE ── -->
+<section class="bg-warm">
+  <p class="section-label">HOW TO USE</p>
+  <h2 class="section-heading">使い方</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">URLを開く</div>
+        <p class="step-desc">ブラウザだけ。<br>インストールもアカウント登録もいりません。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <div class="step-title">位置情報を許可</div>
+        <p class="step-desc">一度だけ。<br>これが唯一の「入口」です。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <div class="step-title">近くの言葉が見える</div>
+        <p class="step-desc">半径500m以内に残された言葉が表示されます。<br>近づくほど、はっきり読めます。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div>
+        <div class="step-title">読む。書きたければ書く。</div>
+        <p class="step-desc">投稿は200文字まで。コメントは140文字まで。<br>コメントは、その場所から50m以内にいるときだけ。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div>
+        <div class="step-title">歩く</div>
+        <p class="step-desc">場所が変わると、言葉が変わる。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta bg-aged">
+  <p class="cta-text">
+    言葉が、場所にたゆたう。
+  </p>
+  <a href="https://tayutau.vercel.app" class="cta-button">はじめる</a>
+  <p class="cta-note">
+    ブラウザで開くだけ。<br>
+    アカウント登録不要。無料。
+  </p>
+</section>
+
+<!-- ── FOOTER ── -->
+<div class="footer">
+  <p>Tayutau — 2026</p>
+</div>
+
+</body>
+</html>
