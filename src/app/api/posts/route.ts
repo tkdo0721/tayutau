@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { moderateText } from "@/lib/moderation";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,14 @@ export async function POST(request: NextRequest) {
   if (!text || typeof lat !== "number" || typeof lng !== "number") {
     return NextResponse.json(
       { error: "text, lat, lng は必須です" },
+      { status: 400 }
+    );
+  }
+
+  const moderation = moderateText(text);
+  if (!moderation.ok) {
+    return NextResponse.json(
+      { error: moderation.reason },
       { status: 400 }
     );
   }
