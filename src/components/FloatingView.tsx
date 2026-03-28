@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Post, GeoLocation } from "@/lib/types";
 import { getDeviceId } from "@/lib/deviceId";
 import CommentSection from "./CommentSection";
+import TypewriterText from "./TypewriterText";
 
 interface Props {
   location: GeoLocation;
@@ -135,6 +136,11 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
+  // カード順次表示: 表示済みカードIDのセット
+  const [visibleCardIds, setVisibleCardIds] = useState<Set<string>>(new Set());
+  // 前回のリフレッシュキーを追跡（再読み込み時にリセット）
+  const prevRefreshKeyRef = useRef(refreshKey);
+
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
@@ -148,8 +154,42 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
   }, [location]);
 
   useEffect(() => {
+    // リフレッシュ時に表示済みカードをリセット
+    if (prevRefreshKeyRef.current !== refreshKey) {
+      setVisibleCardIds(new Set());
+      prevRefreshKeyRef.current = refreshKey;
+    }
     fetchPosts();
   }, [fetchPosts, refreshKey]);
+
+  // カードを新しい順に一枚ずつ表示する（300ms間隔）
+  const CARD_STAGGER_MS = 300;
+  useEffect(() => {
+    if (posts.length === 0) return;
+
+    // created_at の新しい順にソート
+    const sorted = [...posts].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    sorted.forEach((post, i) => {
+      // 既に表示済みなら即追加（再計算によるちらつき防止）
+      if (visibleCardIds.has(post.id)) return;
+      const timer = setTimeout(() => {
+        setVisibleCardIds((prev) => {
+          const next = new Set(prev);
+          next.add(post.id);
+          return next;
+        });
+      }, i * CARD_STAGGER_MS);
+      timers.push(timer);
+    });
+
+    return () => timers.forEach(clearTimeout);
+    // posts が変わった時のみ再実行
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts]);
 
   const positioned = useMemo(() => {
     const initial = posts.map((post) => {
@@ -559,6 +599,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
               if (a.canTap !== b.canTap) return a.canTap ? 1 : -1;
               return b.dist - a.dist;
             })
+            .filter((post) => visibleCardIds.has(post.id))
             .map((post) => {
               const isBeingDragged = draggingId === post.id;
               const isSettled = post.id in settledPositions;
@@ -635,7 +676,10 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
                           : "text-[10px] line-clamp-2"
                       }`}
                     >
-                      {preview}
+                      <TypewriterText
+                        text={preview}
+                        speed={50}
+                      />
                     </p>
                   </div>
                 </div>
