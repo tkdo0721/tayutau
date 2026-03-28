@@ -606,6 +606,15 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
               const preview = visibleText(post.text, post.dist);
               const isNearby = post.canTap;
 
+              // 古い投稿ほどタイプ速度を遅くする（30ms〜120ms）
+              // 24時間以上前の投稿は最遅
+              const ageMs = Date.now() - new Date(post.created_at).getTime();
+              const ageRatio = Math.min(1, ageMs / (24 * 60 * 60 * 1000));
+              const typeSpeed = Math.round(30 + ageRatio * 90);
+
+              // 古い投稿ほどフェードインを遅くする（0.3s〜1.2s）
+              const fadeInDuration = (0.3 + ageRatio * 0.9).toFixed(2);
+
               const currentX = settledPositions[post.id]?.x ?? post.x;
               const currentY = settledPositions[post.id]?.y ?? post.y;
               const stopAnim = isBeingDragged || isSettled;
@@ -631,7 +640,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
                       : "transform 0.4s ease, opacity 0.4s ease",
                     animation: stopAnim
                       ? "none"
-                      : `float-${post.id.slice(0, 8)} ${post.animDuration}s ease-in-out ${post.animDelay}s infinite`,
+                      : `fade-in-${post.id.slice(0, 8)} ${fadeInDuration}s ease-out forwards, float-${post.id.slice(0, 8)} ${post.animDuration}s ease-in-out ${fadeInDuration}s infinite`,
                   }}
                   onTouchStart={
                     isNearby
@@ -646,6 +655,10 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
                 >
                   {!stopAnim && (
                     <style>{`
+                      @keyframes fade-in-${post.id.slice(0, 8)} {
+                        from { opacity: 0; transform: translate(-50%, -50%) scale(${post.scale * 0.85}); }
+                        to   { opacity: ${post.opacity}; transform: translate(-50%, -50%) scale(${post.scale}); }
+                      }
                       @keyframes float-${post.id.slice(0, 8)} {
                         0%, 100% { transform: translate(-50%, -50%) scale(${post.scale}) translate(0px, 0px); }
                         33% { transform: translate(-50%, -50%) scale(${post.scale}) translate(${post.driftX}px, -${post.driftY}px); }
@@ -678,7 +691,7 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
                     >
                       <TypewriterText
                         text={preview}
-                        speed={50}
+                        speed={typeSpeed}
                       />
                     </p>
                   </div>
