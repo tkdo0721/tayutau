@@ -597,8 +597,8 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
           // 画面内カードの中での相対的な新旧でスピードを決める
           const visiblePosts = positioned.filter((p) => visibleCardIds.has(p.id));
           const timestamps = visiblePosts.map((p) => new Date(p.created_at).getTime());
-          const newest = Math.max(...timestamps);
-          const oldest = Math.min(...timestamps);
+          const newest = timestamps.length > 0 ? Math.max(...timestamps) : 0;
+          const oldest = timestamps.length > 0 ? Math.min(...timestamps) : 0;
           const timeSpan = newest - oldest;
 
           return [...positioned]
