@@ -593,8 +593,15 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
               <p className="text-gray-400 text-xs mt-1">最初の投稿をしてみましょう</p>
             </div>
           </div>
-        ) : (
-          [...positioned]
+        ) : (() => {
+          // 画面内カードの中での相対的な新旧でスピードを決める
+          const visiblePosts = positioned.filter((p) => visibleCardIds.has(p.id));
+          const timestamps = visiblePosts.map((p) => new Date(p.created_at).getTime());
+          const newest = Math.max(...timestamps);
+          const oldest = Math.min(...timestamps);
+          const timeSpan = newest - oldest;
+
+          return [...positioned]
             .sort((a, b) => {
               if (a.canTap !== b.canTap) return a.canTap ? 1 : -1;
               return b.dist - a.dist;
@@ -606,13 +613,12 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
               const preview = visibleText(post.text, post.dist);
               const isNearby = post.canTap;
 
-              // 古い投稿ほどタイプ速度を遅くする（30ms〜120ms）
-              // 24時間以上前の投稿は最遅
-              const ageMs = Date.now() - new Date(post.created_at).getTime();
-              const ageRatio = Math.min(1, ageMs / (24 * 60 * 60 * 1000));
+              // 画面内で最新→0、最古→1 の相対比率
+              const ts = new Date(post.created_at).getTime();
+              const ageRatio = timeSpan > 0 ? (newest - ts) / timeSpan : 0;
+              // タイプ速度: 最新30ms、最古120ms
               const typeSpeed = Math.round(30 + ageRatio * 90);
-
-              // 古い投稿ほどフェードインを遅くする（0.3s〜1.2s）
+              // フェードイン: 最新0.3s、最古1.2s
               const fadeInDuration = (0.3 + ageRatio * 0.9).toFixed(2);
 
               const currentX = settledPositions[post.id]?.x ?? post.x;
@@ -697,8 +703,8 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
                   </div>
                 </div>
               );
-            })
-        )}
+            });
+        })()}
       </div>
 
       {/* 投稿ボタン（左下） */}
