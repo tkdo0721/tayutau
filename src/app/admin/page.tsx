@@ -8,6 +8,14 @@ interface Stats {
   totalComments: number;
   todayPosts: number;
   todayComments: number;
+  totalUsers: number;
+}
+
+interface AdminUser {
+  deviceId: string;
+  postCount: number;
+  commentCount: number;
+  lastActive: string;
 }
 
 interface MapPin {
@@ -43,7 +51,7 @@ function timeAgo(dateStr: string) {
 }
 
 // --- タブ切り替え ---
-type Tab = "map" | "posts";
+type Tab = "map" | "posts" | "users";
 
 export default function AdminPage() {
   // 認証
@@ -95,6 +103,10 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
 
+  // ユーザー一覧
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [usersTotal, setUsersTotal] = useState(0);
+
   // 統計取得
   const fetchStats = useCallback(async () => {
     const res = await fetch("/api/admin/stats");
@@ -105,6 +117,16 @@ export default function AdminPage() {
   const fetchMap = useCallback(async () => {
     const res = await fetch("/api/admin/map");
     if (res.ok) setPins(await res.json());
+  }, []);
+
+  // ユーザー一覧取得
+  const fetchUsers = useCallback(async () => {
+    const res = await fetch("/api/admin/users");
+    if (res.ok) {
+      const data = await res.json();
+      setUsers(data.users);
+      setUsersTotal(data.total);
+    }
   }, []);
 
   // 投稿一覧取得
@@ -134,6 +156,10 @@ export default function AdminPage() {
     if (authed && tab === "posts") fetchPosts();
   }, [authed, tab, fetchPosts]);
 
+  useEffect(() => {
+    if (authed && tab === "users") fetchUsers();
+  }, [authed, tab, fetchUsers]);
+
   // 管理者削除
   const deletePost = async (id: string) => {
     if (!confirm("この投稿を削除しますか？（コメントもすべて削除されます）")) return;
@@ -146,31 +172,51 @@ export default function AdminPage() {
     }
   };
 
-  // Leaflet 動的読み込み（SSR回避）
+  // Leaflet + MarkerCluster 動的読み込み（SSR回避）
   useEffect(() => {
     if (!authed || tab !== "map" || mapLoaded) return;
 
-    // CSS
-    if (!document.getElementById("leaflet-css")) {
-      const link = document.createElement("link");
-      link.id = "leaflet-css";
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
+    const loadCSS = (id: string, href: string) => {
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = href;
+        document.head.appendChild(link);
+      }
+    };
 
-    // JS
-    if (!(window as unknown as Record<string, unknown>).L) {
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-      script.onload = () => setMapLoaded(true);
-      document.head.appendChild(script);
-    } else {
+    // Leaflet CSS + MarkerCluster CSS
+    loadCSS("leaflet-css", "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
+    loadCSS("leaflet-mc-css", "https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css");
+    loadCSS("leaflet-mc-default-css", "https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css");
+
+    const loadScript = (src: string): Promise<void> =>
+      new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.onload = () => resolve();
+        document.head.appendChild(script);
+      });
+
+    const win = window as unknown as Record<string, unknown>;
+
+    const init = async () => {
+      // Leaflet 本体
+      if (!win.L) {
+        await loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js");
+      }
+      // MarkerCluster プラグイン
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if (!(win.L as any).MarkerClusterGroup) {
+        await loadScript("https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js");
+      }
       setMapLoaded(true);
-    }
+    };
+    init();
   }, [authed, tab, mapLoaded]);
 
-  // 地図描画
+  // 地図描画（MarkerCluster使用）
   useEffect(() => {
     if (!authed || !mapLoaded || tab !== "map") return;
 
@@ -185,11 +231,8 @@ export default function AdminPage() {
       container.innerHTML = "";
     }
 
-    const center = pins.length > 0
-      ? [pins.reduce((s, p) => s + p.lat, 0) / pins.length, pins.reduce((s, p) => s + p.lng, 0) / pins.length]
-      : [35.6646, 139.7395];
-
-    const map = L.map("admin-map").setView(center, 15);
+    // 日本全体が見えるデフォルトビュー
+    const map = L.map("admin-map").setView([36.5, 137.5], 6);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png", {
       attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
@@ -198,6 +241,24 @@ export default function AdminPage() {
       attribution: "",
       pane: "overlayPane",
     }).addTo(map);
+
+    // MarkerCluster グループ
+    const clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 50,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      iconCreateFunction: (cluster: { getChildCount: () => number }) => {
+        const count = cluster.getChildCount();
+        const size = count < 10 ? 36 : count < 50 ? 44 : 52;
+        return L.divIcon({
+          html: `<div style="width:${size}px;height:${size}px;background:#6366f1;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;color:white;font-size:${size < 44 ? 13 : 15}px;font-weight:bold;">${count}</div>`,
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
+          className: "",
+        });
+      },
+    });
 
     pins.forEach((pin: MapPin) => {
       const size = Math.min(12 + pin.comment_count * 3, 30);
@@ -210,10 +271,12 @@ export default function AdminPage() {
         className: "",
       });
 
-      L.marker([pin.lat, pin.lng], { icon })
-        .addTo(map)
+      const marker = L.marker([pin.lat, pin.lng], { icon })
         .on("click", () => setSelectedPin(pin));
+      clusterGroup.addLayer(marker);
     });
+
+    map.addLayer(clusterGroup);
 
     return () => {
       map.remove();
@@ -268,10 +331,11 @@ export default function AdminPage() {
       <main className="max-w-6xl mx-auto px-6 py-6">
         {/* 統計サマリー */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             {[
               { label: "総投稿数", value: stats.totalPosts },
               { label: "総コメント数", value: stats.totalComments },
+              { label: "ユーザー数", value: stats.totalUsers },
               { label: "今日の投稿", value: stats.todayPosts },
               { label: "今日のコメント", value: stats.todayComments },
             ].map((s) => (
@@ -285,7 +349,7 @@ export default function AdminPage() {
 
         {/* タブ */}
         <div className="flex gap-1 mb-4">
-          {(["map", "posts"] as Tab[]).map((t) => (
+          {(["map", "posts", "users"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -295,7 +359,7 @@ export default function AdminPage() {
                   : "bg-white text-gray-500 hover:bg-gray-100"
               }`}
             >
-              {t === "map" ? "地図" : "投稿一覧"}
+              {t === "map" ? "地図" : t === "posts" ? "投稿一覧" : "ユーザー"}
             </button>
           ))}
         </div>
@@ -420,6 +484,40 @@ export default function AdminPage() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+        {/* ユーザータブ */}
+        {tab === "users" && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="p-4 border-b border-gray-100">
+              <p className="text-xs text-gray-400">
+                ユニークユーザー数: {usersTotal}
+              </p>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {users.map((u) => (
+                <div key={u.deviceId} className="px-5 py-4 hover:bg-gray-50 transition">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-mono text-gray-800">
+                      {u.deviceId.slice(0, 8)}…
+                    </span>
+                    <span className="text-xs text-gray-400" title={u.deviceId}>
+                      {u.deviceId}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-400">
+                    <span>投稿 {u.postCount}件</span>
+                    <span>コメント {u.commentCount}件</span>
+                    <span>最終アクティブ: {timeAgo(u.lastActive)}</span>
+                  </div>
+                </div>
+              ))}
+              {users.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-8">
+                  ユーザーデータがありません
+                </p>
+              )}
+            </div>
           </div>
         )}
       </main>

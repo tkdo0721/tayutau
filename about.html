@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tayutau — 場所に言葉を残す</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500&family=Shippori+Mincho:wght@400;500;600&family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400&display=swap');
+
+  :root {
+    --ink: #1a1714;
+    --paper: #ffffff;
+    --aged: #f2ede4;
+    --sepia: #8a6a4a;
+    --rust: #8b4513;
+    --moss: #4a5240;
+    --fog: #7a6e65;
+    --accent: #6b3a2a;
+    --light-ink: #3d3530;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Noto Serif JP', serif;
+    overflow-x: hidden;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 10vw 12vw;
+    position: relative;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse 60% 80% at 80% 50%, rgba(138,106,74,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 20% 80%, rgba(74,82,64,0.04) 0%, transparent 50%);
+  }
+
+  .cover-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--sepia);
+    margin-bottom: 4rem;
+    opacity: 0.7;
+  }
+
+  .cover-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(5rem, 14vw, 12rem);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cover-title-ja {
+    display: block;
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1rem, 2.5vw, 2rem);
+    font-weight: 400;
+    letter-spacing: 0.4em;
+    color: var(--sepia);
+    margin-top: 1.5rem;
+  }
+
+  .cover-tagline {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1rem, 2vw, 1.4rem);
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    color: var(--fog);
+    margin-top: 4rem;
+    line-height: 2;
+    max-width: 36ch;
+    border-left: 1px solid rgba(138,106,74,0.3);
+    padding-left: 2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cover-meta {
+    position: absolute;
+    bottom: 10vw;
+    right: 12vw;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: rgba(138,106,74,0.5);
+    text-align: right;
+    line-height: 2;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    padding: 10vw 12vw;
+    position: relative;
+  }
+
+  section:nth-child(even) {
+    background: #f8f5f0;
+  }
+
+  section:nth-child(odd) {
+    background: #ffffff;
+  }
+
+  .section-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: var(--sepia);
+    opacity: 0.6;
+    margin-bottom: 2rem;
+  }
+
+  .section-heading {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.8rem, 4vw, 3.5rem);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+    line-height: 1.3;
+    margin-bottom: 4rem;
+  }
+
+  .section-heading em {
+    font-style: normal;
+    color: var(--sepia);
+  }
+
+  /* ── CONCEPT PAGE ── */
+  .concept-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6vw;
+    align-items: start;
+  }
+
+  .concept-text {
+    font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+    line-height: 2.2;
+    color: rgba(26,23,20,0.65);
+    letter-spacing: 0.05em;
+  }
+
+  .concept-text p + p {
+    margin-top: 1.5rem;
+  }
+
+  .concept-quote {
+    border-left: 2px solid var(--sepia);
+    padding: 2rem 2.5rem;
+    margin: 3rem 0;
+  }
+
+  .concept-quote p {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1rem, 1.8vw, 1.3rem);
+    line-height: 2;
+    color: var(--ink);
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+  }
+
+  .concept-quote p + p {
+    margin-top: 1rem;
+    border-top: none;
+  }
+
+  /* ── PHILOSOPHY ── */
+  .philosophy-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 3px;
+  }
+
+  .philosophy-item {
+    background: rgba(0,0,0,0.02);
+    padding: 3rem 3.5rem;
+    border: 1px solid rgba(138,106,74,0.12);
+    transition: background 0.3s;
+  }
+
+  .philosophy-item:hover {
+    background: rgba(0,0,0,0.04);
+  }
+
+  .philosophy-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 4rem;
+    color: rgba(138,106,74,0.15);
+    line-height: 1;
+    margin-bottom: 1.5rem;
+  }
+
+  .philosophy-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.2rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    margin-bottom: 1rem;
+  }
+
+  .philosophy-desc {
+    font-size: 0.9rem;
+    line-height: 2;
+    color: rgba(26,23,20,0.5);
+    letter-spacing: 0.03em;
+  }
+
+  /* ── WHAT IT IS NOT ── */
+  .not-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4vw;
+    align-items: start;
+  }
+
+  .not-list, .is-list {
+    list-style: none;
+  }
+
+  .not-list li, .is-list li {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+    letter-spacing: 0.08em;
+    line-height: 1.6;
+    padding: 1.2rem 0;
+    border-bottom: 1px solid rgba(138,106,74,0.12);
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .not-list li {
+    color: rgba(26,23,20,0.3);
+    text-decoration: line-through;
+    text-decoration-color: rgba(138,106,74,0.3);
+  }
+
+  .is-list li {
+    color: var(--ink);
+  }
+
+  .not-list li::before { content: '×'; color: rgba(138,106,74,0.35); flex-shrink: 0; }
+  .is-list li::before  { content: '○'; color: var(--sepia); flex-shrink: 0; }
+
+  .not-label, .is-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    margin-bottom: 2rem;
+    display: block;
+  }
+
+  .not-label { color: rgba(138,106,74,0.5); }
+  .is-label  { color: var(--sepia); }
+
+  /* ── EXPERIENCE FLOW ── */
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 700px;
+  }
+
+  .flow-step {
+    display: grid;
+    grid-template-columns: 4rem 1fr;
+    gap: 2rem;
+    position: relative;
+    padding-bottom: 3rem;
+  }
+
+  .flow-step:last-child {
+    padding-bottom: 0;
+  }
+
+  .flow-step::before {
+    content: '';
+    position: absolute;
+    left: 1.9rem;
+    top: 3rem;
+    bottom: 0;
+    width: 1px;
+    background: rgba(138,106,74,0.15);
+  }
+
+  .flow-step:last-child::before { display: none; }
+
+  .flow-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    color: rgba(138,106,74,0.3);
+    line-height: 1;
+    padding-top: 0.3rem;
+    text-align: center;
+  }
+
+  .flow-content-title {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+  }
+
+  .flow-content-desc {
+    font-size: 0.88rem;
+    line-height: 2;
+    color: rgba(26,23,20,0.5);
+    letter-spacing: 0.03em;
+  }
+
+  /* ── SPEC TABLE ── */
+  .spec-block {
+    margin-bottom: 4rem;
+  }
+
+  .spec-block-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: var(--sepia);
+    margin-bottom: 1.5rem;
+    opacity: 0.7;
+  }
+
+  .spec-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .spec-table tr {
+    border-bottom: 1px solid rgba(138,106,74,0.1);
+  }
+
+  .spec-table td {
+    padding: 1.2rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    letter-spacing: 0.03em;
+    vertical-align: top;
+  }
+
+  .spec-table td:first-child {
+    color: var(--sepia);
+    width: 35%;
+    font-family: 'Shippori Mincho', serif;
+    letter-spacing: 0.05em;
+  }
+
+  .spec-table td:last-child {
+    color: rgba(26,23,20,0.6);
+  }
+
+  .spec-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4vw;
+  }
+
+  /* ── NOT IMPLEMENTED ── */
+  .no-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .no-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: rgba(26,23,20,0.3);
+    border: 1px solid rgba(26,23,20,0.12);
+    padding: 0.5rem 1.2rem;
+    border-radius: 2px;
+    text-decoration: line-through;
+    text-decoration-color: rgba(138,106,74,0.25);
+  }
+
+  /* ── AXIOMS ── */
+  .axioms {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .axiom {
+    padding: 4rem 2rem;
+    border-bottom: 1px solid rgba(138,106,74,0.12);
+  }
+
+  .axiom:last-child { border-bottom: none; }
+
+  .axiom-text {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.3rem, 3vw, 2rem);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+    line-height: 1.8;
+  }
+
+  .axiom-sub {
+    font-size: 0.85rem;
+    color: rgba(138,106,74,0.6);
+    letter-spacing: 0.1em;
+    margin-top: 1.5rem;
+    line-height: 2;
+  }
+
+  /* ── TECH ── */
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+  }
+
+  .tech-item {
+    background: rgba(0,0,0,0.02);
+    padding: 2.5rem 3rem;
+    border: 1px solid rgba(138,106,74,0.1);
+  }
+
+  .tech-layer {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: rgba(138,106,74,0.5);
+    margin-bottom: 1rem;
+  }
+
+  .tech-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+  }
+
+  .tech-desc {
+    font-size: 0.82rem;
+    color: rgba(26,23,20,0.45);
+    line-height: 1.8;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── CLOSING ── */
+  .closing {
+    min-height: 60vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: #f2ede4 !important;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .closing::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(138,106,74,0.06) 0%, transparent 70%);
+  }
+
+  .closing-main {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    color: var(--ink);
+    line-height: 2;
+    position: relative;
+    z-index: 1;
+  }
+
+  .closing-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: rgba(138,106,74,0.5);
+    margin-top: 3rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    width: 60px;
+    height: 1px;
+    background: rgba(138,106,74,0.3);
+    margin: 3rem 0;
+  }
+
+  /* ── WIDE QUOTE ── */
+  .wide-quote {
+    padding: 8vw 12vw;
+    background: #f2ede4 !important;
+    text-align: center;
+  }
+
+  .wide-quote p {
+    font-family: 'Shippori Mincho', serif;
+    font-size: clamp(1.2rem, 3.5vw, 2.5rem);
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    line-height: 2.2;
+    color: rgba(26,23,20,0.6);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .wide-quote p strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── URL BAR ── */
+  .url-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(0,0,0,0.03);
+    border: 1px solid rgba(138,106,74,0.2);
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    margin-top: 3rem;
+  }
+
+  .url-bar span {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    color: var(--sepia);
+  }
+
+  .url-bar::before {
+    content: '🔗';
+    font-size: 0.8rem;
+    opacity: 0.6;
+  }
+
+  @media print {
+    body { background: white; color: black; }
+    .cover { background: #f8f5f0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── COVER ── -->
+<div class="cover">
+  <p class="cover-tag">PERSONAL PROJECT — 2026</p>
+  <h1 class="cover-title">
+    Tayutau
+    <span class="cover-title-ja">た ゆ た う</span>
+  </h1>
+  <p class="cover-tagline">
+    歩いていたら、誰かの言葉が<br>
+    流れてきた。<br><br>
+    場所に言葉を残す、<br><span style="white-space: nowrap;">ロケーションベースの匿名メッセージアプリ。</span>
+  </p>
+  <div class="cover-meta">
+    tayutau.vercel.app<br>
+    Next.js · Supabase · PostGIS
+  </div>
+</div>
+
+<!-- ── CONCEPT ── -->
+<section>
+  <p class="section-num">01 — CONCEPT</p>
+  <h2 class="section-heading">旅館のノートが<br><em>デジタルになったら。</em></h2>
+  <div class="concept-body">
+    <div class="concept-text">
+      <p>旅館や喫茶店に置いてあった、あのノート。知らない人の一言に、なぜか胸の奥がやわらかくなる。自分だけの場所だと思っていたら、他の人も同じように大切にしていた場所だった。</p>
+      <p>その感覚を、街にひろげる。</p>
+      <p>Tayutauは、場所に言葉を残すアプリです。書いた人はもういないかもしれない。でも確かに、誰かがここに立ち止まった。</p>
+      <div class="url-bar"><span>tayutau.vercel.app</span></div>
+    </div>
+    <div>
+      <div class="concept-quote">
+        <p>「自分だけの場所だと思っていたら、<br>他の人も大切にしている場所だった」</p>
+      </div>
+      <div class="concept-quote">
+        <p>「孤独だと思っていたら、<br>孤独じゃなかった」</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── WIDE QUOTE ── -->
+<div class="wide-quote">
+  <p>
+    SNSのような評価もフォローもいらない。<br>
+    バズらなくていい。ただ、<strong>その場所に来た人だけが触れられる言葉</strong>が、<br>
+    静かに積み重なっていく。
+  </p>
+</div>
+
+<!-- ── PHILOSOPHY ── -->
+<section>
+  <p class="section-num">02 — PHILOSOPHY</p>
+  <h2 class="section-heading">設計の思想</h2>
+  <div class="philosophy-grid">
+    <div class="philosophy-item">
+      <div class="philosophy-num">01</div>
+      <div class="philosophy-title">好奇心を消費しない</div>
+      <p class="philosophy-desc">好きなものを探せば、自分好みの情報は溢れるほど手に入る。知った気になって、好奇心は満たされる。でもそれは、満たされているのか消費しているだけなのか。
+
+押しつけられるわけでも、取りにいくわけでもなく、ただ言葉に触れる。誰かがここに置いていった言葉に、想いを寄せる。それがTayutauの体験。</p>
+    </div>
+    <div class="philosophy-item">
+      <div class="philosophy-num">02</div>
+      <div class="philosophy-title">同じ場所に立った人だけが見える景色</div>
+      <p class="philosophy-desc">書いた人はもういない。でもその言葉の前で、少しドキッとする。「あ、私もそうだ」と思う。それは、同じ場所に立ったことがあるから見える景色。場所を共有しているだけで、見知らぬ誰かとつながる瞬間がある。</p>
+    </div>
+    <div class="philosophy-item">
+      <div class="philosophy-num">03</div>
+      <div class="philosophy-title">その場所に来ないと参加できない</div>
+      <p class="philosophy-desc">コメントも、その座標に来た人しか書けない。同じ場所に立った人同士の対話だから、言葉に重みが出る。遠くから「いいね」を押すんじゃなくて、そこに来ないと参加できない。</p>
+    </div>
+    <div class="philosophy-item">
+      <div class="philosophy-num">04</div>
+      <div class="philosophy-title">情緒的であること</div>
+      <p class="philosophy-desc">共感したり、書いた人を想像したり、発見があったり、胸の奥がしずかに動いたり。効率や便利さではなく、情緒が中心にある。KPIにできないものを大切にする設計。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── WHAT IT IS NOT ── -->
+<section>
+  <p class="section-num">03 — POSITIONING</p>
+  <h2 class="section-heading">これは何で、<br><em>何でないか。</em></h2>
+  <div class="not-grid">
+    <div>
+      <span class="not-label">— NOT THIS</span>
+      <ul class="not-list">
+        <li>SNS / ソーシャルメディア</li>
+        <li>いいね・評価・フォロー</li>
+        <li>バズるコンテンツ</li>
+        <li>写真・動画共有</li>
+        <li>検索できる情報データベース</li>
+        <li>通知でエンゲージメントを稼ぐアプリ</li>
+      </ul>
+    </div>
+    <div>
+      <span class="is-label">+ THIS</span>
+      <ul class="is-list">
+        <li>場所の記憶の器</li>
+        <li>知らない誰かとの静かな共鳴</li>
+        <li>歩くことで出会う言葉</li>
+        <li>その場所に立たないと読めない物語</li>
+        <li>痕跡が積み重なる場所</li>
+        <li>道具は黙ってそこにある</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ── EXPERIENCE FLOW ── -->
+<section>
+  <p class="section-num">04 — EXPERIENCE</p>
+  <h2 class="section-heading">体験の流れ</h2>
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-num">1</div>
+      <div>
+        <div class="flow-content-title">URLを開く</div>
+        <p class="flow-content-desc">ブラウザだけ。インストール不要。アカウント登録不要。<br>インストールの摩擦がある時点で、旅館のノートの感覚から離れていく。</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">2</div>
+      <div>
+        <div class="flow-content-title">位置情報を許可</div>
+        <p class="flow-content-desc">一度だけ。これが唯一の「入口」。</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">3</div>
+      <div>
+        <div class="flow-content-title">近くの言葉が流れてくる</div>
+        <p class="flow-content-desc">半径500m以内の投稿が表示される。<br>探しに行くのではなく、歩いていたら出会う。</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">4</div>
+      <div>
+        <div class="flow-content-title">読む。書きたければ書く。</div>
+        <p class="flow-content-desc">強制しない。書かなくてもいい。<br>「何を書けとも、どう感じろとも言わない」</p>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">5</div>
+      <div>
+        <div class="flow-content-title">歩く</div>
+        <p class="flow-content-desc">場所が変わると、言葉が変わる。<br>言葉が、場所にたゆたう。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SPEC ── -->
+<section>
+  <p class="section-num">05 — SPECIFICATION</p>
+  <h2 class="section-heading">機能仕様 <em>（MVP）</em></h2>
+  <div class="spec-columns">
+    <div>
+      <div class="spec-block">
+        <p class="spec-block-title">— 投稿</p>
+        <table class="spec-table">
+          <tr><td>文字数</td><td>200文字以内</td></tr>
+          <tr><td>形式</td><td>テキストのみ</td></tr>
+          <tr><td>座標</td><td>投稿時の位置情報を自動記録</td></tr>
+          <tr><td>匿名</td><td>名前・アカウント不要</td></tr>
+          <tr><td>制限</td><td>同一座標への連続投稿は制限</td></tr>
+        </table>
+      </div>
+      <div class="spec-block">
+        <p class="spec-block-title">— フィード</p>
+        <table class="spec-table">
+          <tr><td>表示範囲</td><td>現在地から半径500m以内</td></tr>
+          <tr><td>並び順</td><td>新着順</td></tr>
+          <tr><td>表示内容</td><td>本文・投稿日・コメント数</td></tr>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="spec-block">
+        <p class="spec-block-title">— コメント</p>
+        <table class="spec-table">
+          <tr><td>閲覧</td><td>誰でも読める</td></tr>
+          <tr><td>投稿条件</td><td>元の投稿から半径50m以内にいる人のみ</td></tr>
+          <tr><td>文字数</td><td>140文字以内</td></tr>
+          <tr><td>匿名</td><td>名前・アカウント不要</td></tr>
+        </table>
+      </div>
+      <div class="spec-block">
+        <p class="spec-block-title">— 意図的に実装しないもの</p>
+        <div class="no-list">
+          <span class="no-tag">いいね</span>
+          <span class="no-tag">フォロー</span>
+          <span class="no-tag">シェア</span>
+          <span class="no-tag">写真・動画</span>
+          <span class="no-tag">検索</span>
+          <span class="no-tag">通知</span>
+        </div>
+        <p style="font-size:0.8rem; color:rgba(138,106,74,0.55); margin-top:1.5rem; letter-spacing:0.05em; line-height:2;">評価されないから、パフォーマンスにならない。<br>バズらないから、正直な言葉が残る。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TECH ── -->
+<section>
+  <p class="section-num">06 — TECH STACK</p>
+  <h2 class="section-heading">技術構成</h2>
+  <div class="tech-grid">
+    <div class="tech-item">
+      <div class="tech-layer">FRONTEND</div>
+      <div class="tech-name">Next.js</div>
+      <p class="tech-desc">App Router。<br>Vercel にデプロイ。<br>Geolocation API で位置取得。</p>
+    </div>
+    <div class="tech-item">
+      <div class="tech-layer">BACKEND + DB</div>
+      <div class="tech-name">Supabase</div>
+      <p class="tech-desc">BaaS。PostGIS で<br>半径クエリを実現。<br>認証不要（匿名投稿）。</p>
+    </div>
+    <div class="tech-item">
+      <div class="tech-layer">HOSTING</div>
+      <div class="tech-name">Vercel</div>
+      <p class="tech-desc">デプロイ済み。<br>tayutau.vercel.app<br>で公開中。</p>
+    </div>
+  </div>
+  <div style="margin-top:3rem;">
+    <p class="spec-block-title">— データ構造（最小）</p>
+    <table class="spec-table" style="max-width:500px;">
+      <tr><td>posts</td><td style="font-family:'DM Mono',monospace; font-size:0.8rem;">id, text, lat, lng, created_at</td></tr>
+      <tr><td>comments</td><td style="font-family:'DM Mono',monospace; font-size:0.8rem;">id, post_id, text, lat, lng, created_at</td></tr>
+    </table>
+  </div>
+</section>
+
+
+
+<!-- ── CLOSING ── -->
+<section class="closing">
+  <p class="closing-main">
+    言葉が、場所にたゆたう。
+  </p>
+  <p class="closing-sub">tayutau.vercel.app · 2026</p>
+</section>
+
+</body>
+</html>
