@@ -234,12 +234,8 @@ export default function AdminPage() {
     // 日本全体が見えるデフォルトビュー
     const map = L.map("admin-map").setView([36.5, 137.5], 6);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png", {
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
       attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-    }).addTo(map);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png", {
-      attribution: "",
-      pane: "overlayPane",
     }).addTo(map);
 
     // MarkerCluster グループ
