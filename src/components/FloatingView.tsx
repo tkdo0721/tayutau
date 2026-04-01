@@ -141,17 +141,56 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
   // 前回のリフレッシュキーを追跡（再読み込み時にリセット）
   const prevRefreshKeyRef = useRef(refreshKey);
 
+  // 閲覧記録送信（バックグラウンド、エラーは無視）
+  const recordedRef = useRef<Set<string>>(new Set());
+  const recordViews = useCallback(
+    (fetchedPosts: Post[]) => {
+      const deviceId = getDeviceId();
+      if (!deviceId) return;
+      for (const post of fetchedPosts) {
+        const dist = post.distance_m ?? Infinity;
+        if (dist <= 500) {
+          const reachKey = `${post.id}:reach`;
+          if (!recordedRef.current.has(reachKey)) {
+            recordedRef.current.add(reachKey);
+            fetch("/api/views", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ post_id: post.id, device_id: deviceId, distance_type: "reach" }),
+            }).catch(() => {});
+          }
+        }
+        if (dist <= 50) {
+          const viewKey = `${post.id}:view`;
+          if (!recordedRef.current.has(viewKey)) {
+            recordedRef.current.add(viewKey);
+            fetch("/api/views", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ post_id: post.id, device_id: deviceId, distance_type: "view" }),
+            }).catch(() => {});
+          }
+        }
+      }
+    },
+    []
+  );
+
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(
         `/api/posts?lat=${location.lat}&lng=${location.lng}`
       );
-      if (res.ok) setPosts(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(data);
+        recordViews(data);
+      }
     } finally {
       setLoading(false);
     }
-  }, [location]);
+  }, [location, recordViews]);
 
   useEffect(() => {
     // リフレッシュ時に表示済みカードをリセット
@@ -717,6 +756,17 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
+
+      {/* マイページボタン（左下、位置更新ボタンの上） */}
+      <a
+        href="/mypage"
+        className="absolute left-5 bottom-[112px] z-40 w-8 h-8 rounded-full bg-white/80 text-gray-400 shadow flex items-center justify-center hover:text-indigo-500 transition"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M20 21a8 8 0 1 0-16 0" />
+        </svg>
+      </a>
 
       {/* 位置更新ボタン（左下、投稿ボタンの上） */}
       <button
