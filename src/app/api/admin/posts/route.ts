@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("posts")
-    .select("id, text, lat, lng, created_at, device_id", { count: "exact" })
+    .select("id, text, lat, lng, created_at, device_id, reach_count, view_count", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 

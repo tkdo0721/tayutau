@@ -757,17 +757,6 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
         </svg>
       </button>
 
-      {/* マイページボタン（左下、位置更新ボタンの上） */}
-      <a
-        href="/mypage"
-        className="absolute left-5 bottom-[112px] z-40 w-8 h-8 rounded-full bg-white/80 text-gray-400 shadow flex items-center justify-center hover:text-indigo-500 transition"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M20 21a8 8 0 1 0-16 0" />
-        </svg>
-      </a>
-
       {/* 位置更新ボタン（左下、投稿ボタンの上） */}
       <button
         onClick={onRefreshLocation}

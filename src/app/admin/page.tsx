@@ -9,6 +9,11 @@ interface Stats {
   todayPosts: number;
   todayComments: number;
   totalUsers: number;
+  totalReach: number;
+  totalView: number;
+  byHour: number[];
+  byDay: number[];
+  peakHour: number;
 }
 
 interface AdminUser {
@@ -35,6 +40,8 @@ interface AdminPost {
   created_at: string;
   device_id: string | null;
   comment_count: number;
+  reach_count: number;
+  view_count: number;
 }
 
 // --- 時間表示 ---
@@ -327,20 +334,96 @@ export default function AdminPage() {
       <main className="max-w-6xl mx-auto px-6 py-6">
         {/* 統計サマリー */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            {[
-              { label: "総投稿数", value: stats.totalPosts },
-              { label: "総コメント数", value: stats.totalComments },
-              { label: "ユーザー数", value: stats.totalUsers },
-              { label: "今日の投稿", value: stats.todayPosts },
-              { label: "今日のコメント", value: stats.todayComments },
-            ].map((s) => (
-              <div key={s.label} className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
-                <p className="text-xs text-gray-400">{s.label}</p>
-                <p className="text-2xl font-semibold text-gray-800 mt-1">{s.value}</p>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              {[
+                { label: "総投稿数", value: stats.totalPosts },
+                { label: "総コメント数", value: stats.totalComments },
+                { label: "ユーザー数", value: stats.totalUsers },
+                { label: "今日の投稿", value: stats.todayPosts },
+              ].map((s) => (
+                <div key={s.label} className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
+                  <p className="text-xs text-gray-400">{s.label}</p>
+                  <p className="text-2xl font-semibold text-gray-800 mt-1">{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* アナリティクスサマリー */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
+                <p className="text-xs text-gray-400">総リーチ</p>
+                <p className="text-2xl font-semibold text-indigo-600 mt-1">{stats.totalReach}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">500m以内でのユニーク認知数</p>
               </div>
-            ))}
-          </div>
+              <div className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
+                <p className="text-xs text-gray-400">総エンゲージ</p>
+                <p className="text-2xl font-semibold text-indigo-600 mt-1">{stats.totalView}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">50m以内でのユニーク閲覧数</p>
+              </div>
+              <div className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
+                <p className="text-xs text-gray-400">転換率</p>
+                <p className="text-2xl font-semibold text-indigo-600 mt-1">
+                  {stats.totalReach > 0
+                    ? `${Math.round((stats.totalView / stats.totalReach) * 100)}%`
+                    : "—"}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">リーチ → エンゲージ</p>
+              </div>
+              <div className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
+                <p className="text-xs text-gray-400">ピーク時間帯</p>
+                <p className="text-2xl font-semibold text-indigo-600 mt-1">{stats.peakHour}時台</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">直近7日間で最もアクセスが多い時間</p>
+              </div>
+            </div>
+
+            {/* 時間帯別グラフ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
+                <p className="text-xs text-gray-400 mb-3">時間帯別アクセス（直近7日間）</p>
+                <div className="flex items-end gap-0.5 h-20">
+                  {(stats.byHour || []).map((v: number, i: number) => {
+                    const max = Math.max(...(stats.byHour || []), 1);
+                    return (
+                      <div
+                        key={i}
+                        className="flex-1 bg-indigo-400 rounded-t-sm hover:bg-indigo-500 transition-colors"
+                        style={{ height: `${(v / max) * 100}%`, minHeight: v > 0 ? 2 : 0 }}
+                        title={`${i}時: ${v}件`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-300 mt-1">
+                  <span>0時</span>
+                  <span>6時</span>
+                  <span>12時</span>
+                  <span>18時</span>
+                  <span>23時</span>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100">
+                <p className="text-xs text-gray-400 mb-3">日別アクセス（直近7日間）</p>
+                <div className="flex items-end gap-1 h-20">
+                  {(stats.byDay || []).map((v: number, i: number) => {
+                    const max = Math.max(...(stats.byDay || []), 1);
+                    return (
+                      <div
+                        key={i}
+                        className="flex-1 bg-indigo-400 rounded-t-sm hover:bg-indigo-500 transition-colors"
+                        style={{ height: `${(v / max) * 100}%`, minHeight: v > 0 ? 2 : 0 }}
+                        title={`${6 - i}日前: ${v}件`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-300 mt-1">
+                  <span>6日前</span>
+                  <span>今日</span>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {/* タブ */}
@@ -433,9 +516,15 @@ export default function AdminPage() {
               {posts.map((p) => (
                 <div key={p.id} className="px-5 py-4 hover:bg-gray-50 transition">
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{p.text}</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 flex-wrap">
                     <span>{timeAgo(p.created_at)}</span>
                     <span>コメント {p.comment_count}件</span>
+                    <span className="text-indigo-400" title="500m以内のユニーク認知数">
+                      リーチ {p.reach_count ?? 0}
+                    </span>
+                    <span className="text-indigo-500" title="50m以内のユニーク閲覧数">
+                      閲覧 {p.view_count ?? 0}
+                    </span>
                     <span>{p.lat.toFixed(5)}, {p.lng.toFixed(5)}</span>
                     {p.device_id && (
                       <span className="text-gray-300" title={p.device_id}>
