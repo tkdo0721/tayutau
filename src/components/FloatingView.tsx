@@ -5,6 +5,7 @@ import type { Post, GeoLocation } from "@/lib/types";
 import { getDeviceId } from "@/lib/deviceId";
 import CommentSection from "./CommentSection";
 import TypewriterText from "./TypewriterText";
+import EmptyStateWaves from "./EmptyStateWaves";
 
 interface Props {
   location: GeoLocation;
@@ -622,17 +623,11 @@ export default function FloatingView({ location, refreshKey, onPosted, onRefresh
           </div>
         </div>
 
+        {/* 空白状態の演出 — 投稿0件で曲線がたゆたう */}
+        <EmptyStateWaves visible={!loading && posts.length === 0} />
+
         {/* 浮遊カード */}
-        {posts.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-gray-400 text-sm">
-                半径500m以内にまだ投稿がありません
-              </p>
-              <p className="text-gray-400 text-xs mt-1">最初の投稿をしてみましょう</p>
-            </div>
-          </div>
-        ) : (() => {
+        {posts.length === 0 ? null : (() => {
           // 画面内カードの中での相対的な新旧でスピードを決める
           const visiblePosts = positioned.filter((p) => visibleCardIds.has(p.id));
           const timestamps = visiblePosts.map((p) => new Date(p.created_at).getTime());
